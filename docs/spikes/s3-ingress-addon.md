@@ -44,7 +44,6 @@ dynamischem Basis-Pfad, Zugriffsschutz und aarch64-Image?
 
 ## Offene Punkte – Abnahme auf dem Pi
 
-1. Paket `ghcr.io/stefanluchs/my-velo-aarch64` nach dem ersten Release in GitHub auf **public**
-   stellen (Package settings → Change visibility).
+1. ✅ Release `v0.0.1` veröffentlicht; beide Images sind anonym abrufbar (siehe [release.md](../release.md)).
 2. Repository in Home Assistant hinzufügen, Add-on installieren, starten.
 3. Panel „my Velo“ öffnen: Zeile „Über Ingress“ = ja, „API-Aufruf (relativ)“ = ✅.

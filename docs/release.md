@@ -12,6 +12,16 @@
 
 3. Der Workflow [release.yml](../.github/workflows/release.yml) prüft, dass Tag und Add-on-Version
    übereinstimmen, und veröffentlicht `ghcr.io/stefanluchs/my-velo-aarch64` und `-amd64`.
-4. **Nur beim ersten Release:** Unter GitHub → Packages beide Pakete auf **public** stellen, sonst
-   kann der Supervisor sie nicht laden.
+4. **Sichtbarkeit:** Die Pakete übernehmen über das Label `org.opencontainers.image.source` die
+   Sichtbarkeit des öffentlichen Repositorys und sind ohne Anmeldung abrufbar (bestätigt mit
+   `v0.0.1`). Prüfen bei Bedarf:
+
+   ```bash
+   t=$(curl -s "https://ghcr.io/token?scope=repository:stefanluchs/my-velo-aarch64:pull" | jq -r .token)
+   curl -s -o /dev/null -w "%{http_code}\n" -H "Authorization: Bearer $t" \
+     -H "Accept: application/vnd.oci.image.index.v1+json, application/vnd.oci.image.manifest.v1+json" \
+     https://ghcr.io/v2/stefanluchs/my-velo-aarch64/manifests/<version>   # 200 = öffentlich
+   ```
+
+   Liefert die Prüfung `401`, das Paket unter GitHub → Packages → Package settings auf **public** stellen.
 5. Home Assistant zeigt das Update im Add-on-Store an (ggf. **⋮ → Nach Updates suchen**).

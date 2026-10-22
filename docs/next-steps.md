@@ -26,8 +26,8 @@ Diese Prüfungen kann nur der Kontoinhaber durchführen. Ergebnisse bitte im jew
 unter „Ergebnisse“ ergänzen.
 
 - [ ] **S3 Abnahme auf dem Pi** – Anleitung: [release.md](release.md), [s3-ingress-addon.md](spikes/s3-ingress-addon.md#offene-punkte--abnahme-auf-dem-pi)
-  1. Release `v0.0.1` ist gebaut → beide GHCR-Pakete (`my-velo-aarch64`, `my-velo-amd64`) unter
-     GitHub → Packages einmalig auf **public** stellen.
+  1. Release `v0.0.1` ist veröffentlicht; die Images `ghcr.io/stefanluchs/my-velo-{aarch64,amd64}:0.0.1`
+     sind öffentlich abrufbar (anonym geprüft am 22.10.2026).
   2. In Home Assistant das Repository `https://github.com/stefanluchs/my-velo` hinzufügen,
      Add-on installieren und starten.
   3. Panel „my Velo“ öffnen: „Über Ingress = ja“ und „API-Aufruf ✅“.

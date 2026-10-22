@@ -19,4 +19,4 @@ Emulation. Für den Abschluss von Phase 0 fehlen nur Prüfungen mit echten Daten
 
 1. **S1 Live-Test** mit dem eigenen Garmin-Konto (Login, MFA, Token-Erneuerung, Download).
 2. **S2** mit dem eigenen Garmin-Gesamtexport (Dateinamen, Schlüssel beider Geräte, Doppelaufzeichnungen).
-3. **S3 Abnahme** auf dem Raspberry Pi nach dem ersten Release `v0.0.1`.
+3. **S3 Abnahme** auf dem Raspberry Pi; das Release `v0.0.1` ist bereits veröffentlicht.
