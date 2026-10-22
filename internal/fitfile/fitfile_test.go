@@ -8,90 +8,17 @@ import (
 	"testing"
 	"time"
 
-	"github.com/muktihari/fit/encoder"
-	"github.com/muktihari/fit/kit/semicircles"
 	"github.com/muktihari/fit/profile/basetype"
-	"github.com/muktihari/fit/profile/filedef"
-	"github.com/muktihari/fit/profile/mesgdef"
 	"github.com/muktihari/fit/profile/typedef"
+
+	"github.com/stefanluchs/my-velo/internal/fittest"
 )
 
-// Fixtures are generated synthetically: the sample files of the Garmin FIT SDK
-// must not be redistributed, and personal activities must not be committed.
+var created = fittest.Created
 
-var created = time.Date(2026, 5, 1, 8, 0, 0, 0, time.UTC)
+func defaultFixture() fittest.Options { return fittest.Default() }
 
-type fixture struct {
-	fileType typedef.File
-	serial   uint32
-	created  time.Time
-	points   int
-	withGPS  bool
-	power    bool
-	hrOffset uint8 // varies record content without touching file_id
-	// noSession simulates a recording aborted before the summary was written.
-	noSession bool
-}
-
-func defaultFixture() fixture {
-	return fixture{fileType: typedef.FileActivity, serial: 3412345678, created: created, points: 60, withGPS: true, power: true}
-}
-
-func encode(t *testing.T, f fixture) []byte {
-	t.Helper()
-	act := filedef.NewActivity()
-	act.FileId.
-		SetType(f.fileType).
-		SetManufacturer(typedef.ManufacturerGarmin).
-		SetProduct(4440).
-		SetSerialNumber(f.serial).
-		SetTimeCreated(f.created)
-
-	start := f.created.Add(time.Minute)
-	for i := range f.points {
-		rec := mesgdef.NewRecord(nil).
-			SetTimestamp(start.Add(time.Duration(i) * time.Second)).
-			SetDistance(uint32(i * 800)). // 8 m/s, scale 100
-			SetHeartRate(120 + f.hrOffset).
-			SetCadence(85).
-			SetEnhancedAltitude(uint32((400 + 500) * 5)) // 400 m, scale 5, offset 500
-		if f.withGPS {
-			rec.SetPositionLat(semicircles.ToSemicircles(48.2 + float64(i)*1e-4)).
-				SetPositionLong(semicircles.ToSemicircles(12.8))
-		}
-		if f.power {
-			rec.SetPower(210)
-		}
-		act.Records = append(act.Records, rec)
-	}
-	end := start.Add(time.Duration(f.points) * time.Second)
-	if f.noSession {
-		fit := act.ToFIT(nil)
-		var buf bytes.Buffer
-		if err := encoder.New(&buf).Encode(&fit); err != nil {
-			t.Fatalf("encode fixture: %v", err)
-		}
-		return buf.Bytes()
-	}
-	act.Laps = append(act.Laps, mesgdef.NewLap(nil).SetTimestamp(end).SetStartTime(start))
-	act.Sessions = append(act.Sessions, mesgdef.NewSession(nil).
-		SetTimestamp(end).
-		SetStartTime(start).
-		SetSport(typedef.SportCycling).
-		SetSubSport(typedef.SubSportRoad).
-		SetTotalDistance(uint32(f.points*800)).
-		SetTotalTimerTime(uint32(f.points*1000)).
-		SetTotalElapsedTime(uint32(f.points*1000)).
-		SetTotalAscent(12))
-	act.Activity = mesgdef.NewActivity(nil).SetTimestamp(end).SetLocalTimestamp(end.Add(2 * time.Hour)).SetNumSessions(1).SetType(typedef.ActivityManual)
-
-	fit := act.ToFIT(nil)
-	var buf bytes.Buffer
-	if err := encoder.New(&buf).Encode(&fit); err != nil {
-		t.Fatalf("encode fixture: %v", err)
-	}
-	return buf.Bytes()
-}
+func encode(t *testing.T, o fittest.Options) []byte { return fittest.Encode(t, o) }
 
 func TestParseSummary(t *testing.T) {
 	s, err := Parse(bytes.NewReader(encode(t, defaultFixture())))
@@ -120,7 +47,7 @@ func TestKeyIsStableAcrossContentChanges(t *testing.T) {
 	// the key must match so that re-imports update instead of duplicating.
 	a := defaultFixture()
 	b := defaultFixture()
-	b.hrOffset = 5
+	b.HROffset = 5
 
 	sa, err := Parse(bytes.NewReader(encode(t, a)))
 	if err != nil {
@@ -142,7 +69,7 @@ func TestKeyDistinguishesDevices(t *testing.T) {
 	// fēnix and Edge recording the same ride in parallel: same time, different serials.
 	a := defaultFixture()
 	b := defaultFixture()
-	b.serial = 3499999999
+	b.Serial = 3499999999
 
 	sa, _ := Parse(bytes.NewReader(encode(t, a)))
 	sb, _ := Parse(bytes.NewReader(encode(t, b)))
@@ -153,7 +80,7 @@ func TestKeyDistinguishesDevices(t *testing.T) {
 
 func TestFallbackToSHA256WithoutSerial(t *testing.T) {
 	f := defaultFixture()
-	f.serial = basetype.Uint32zInvalid
+	f.Serial = basetype.Uint32zInvalid
 	s, err := Parse(bytes.NewReader(encode(t, f)))
 	if err != nil {
 		t.Fatal(err)
@@ -165,7 +92,7 @@ func TestFallbackToSHA256WithoutSerial(t *testing.T) {
 
 func TestIndoorActivityWithoutGPS(t *testing.T) {
 	f := defaultFixture()
-	f.withGPS = false
+	f.WithGPS = false
 	s, err := Parse(bytes.NewReader(encode(t, f)))
 	if err != nil {
 		t.Fatal(err)
@@ -177,7 +104,7 @@ func TestIndoorActivityWithoutGPS(t *testing.T) {
 
 func TestAbortedRecordingFallsBackToRecords(t *testing.T) {
 	f := defaultFixture()
-	f.noSession = true
+	f.NoSession = true
 	s, err := Parse(bytes.NewReader(encode(t, f)))
 	if err != nil {
 		t.Fatal(err)
@@ -189,7 +116,7 @@ func TestAbortedRecordingFallsBackToRecords(t *testing.T) {
 
 func TestRejectsNonActivityAndGarbage(t *testing.T) {
 	f := defaultFixture()
-	f.fileType = typedef.FileCourse
+	f.FileType = typedef.FileCourse
 	if _, err := Parse(bytes.NewReader(encode(t, f))); err == nil || !strings.Contains(err.Error(), "not an activity") {
 		t.Errorf("course file: err = %v", err)
 	}

@@ -61,7 +61,7 @@ func TestDecodeSummaryDerivedValues(t *testing.T) {
 
 func TestIndoorStreamHasNoCoordinates(t *testing.T) {
 	f := defaultFixture()
-	f.withGPS = false
+	f.WithGPS = false
 	act, err := Decode(encode(t, f))
 	if err != nil {
 		t.Fatal(err)
@@ -91,7 +91,7 @@ func TestSeriesJSONRoundTrip(t *testing.T) {
 
 func TestStreamJSONOmitsEmptyChannels(t *testing.T) {
 	f := defaultFixture()
-	f.withGPS, f.power = false, false
+	f.WithGPS, f.Power = false, false
 	act, err := Decode(encode(t, f))
 	if err != nil {
 		t.Fatal(err)

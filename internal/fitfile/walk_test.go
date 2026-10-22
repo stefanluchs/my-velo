@@ -53,7 +53,7 @@ func collect(t *testing.T, root string) map[string]Summary {
 func TestWalkGarminExportLayout(t *testing.T) {
 	ride := encode(t, defaultFixture())
 	other := defaultFixture()
-	other.serial = 1
+	other.Serial = 1
 	ride2 := encode(t, other)
 
 	inner := writeZip(t, map[string][]byte{
