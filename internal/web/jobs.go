@@ -35,7 +35,9 @@ type Jobs struct {
 	ctx  context.Context
 	mu   sync.Mutex
 	last *ImportJob
-	wg   sync.WaitGroup
+	// done is closed when the latest job has finished. A channel instead of
+	// a WaitGroup: jobs may start (scheduler) while Wait runs (shutdown).
+	done chan struct{}
 }
 
 // NewJobs creates a runner whose jobs are cancelled when ctx ends.
@@ -51,9 +53,10 @@ func (j *Jobs) Start(label string, fn func(ctx context.Context, report func(impo
 	}
 	job := &ImportJob{Label: label, StartedAt: time.Now(), Running: true}
 	j.last = job
-	j.wg.Add(1)
+	done := make(chan struct{})
+	j.done = done
 	go func() {
-		defer j.wg.Done()
+		defer close(done)
 		if cleanup != nil {
 			defer cleanup()
 		}
@@ -89,5 +92,13 @@ func (j *Jobs) Last() *ImportJob {
 	return &cp
 }
 
-// Wait blocks until running jobs have finished (used on shutdown and in tests).
-func (j *Jobs) Wait() { j.wg.Wait() }
+// Wait blocks until the latest job has finished (used on shutdown and in
+// tests). Only one job runs at a time, so this covers all running work.
+func (j *Jobs) Wait() {
+	j.mu.Lock()
+	done := j.done
+	j.mu.Unlock()
+	if done != nil {
+		<-done
+	}
+}

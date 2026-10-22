@@ -42,3 +42,21 @@ func TestLoadInvalidJSON(t *testing.T) {
 		t.Error("expected error for invalid JSON")
 	}
 }
+
+func TestGarminOptions(t *testing.T) {
+	o := Defaults()
+	if since, ok := o.GarminSince(); !ok || since.Format("2006-01-02") != DefaultGarminSince || o.GarminInterval().Hours() != 2 {
+		t.Errorf("defaults %v %v", since, o.GarminInterval())
+	}
+	o.GarminSyncSince, o.GarminSyncIntervalHours = "01.05.2025", 99
+	if since, ok := o.GarminSince(); ok || since.Format("2006-01-02") != DefaultGarminSince {
+		t.Errorf("invalid date must fall back: %v %v", since, ok)
+	}
+	if o.GarminInterval().Hours() != 24 {
+		t.Errorf("interval not capped: %v", o.GarminInterval())
+	}
+	o.GarminSyncIntervalHours = 0
+	if o.GarminInterval() != 0 {
+		t.Error("0 disables")
+	}
+}

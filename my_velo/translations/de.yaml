@@ -9,3 +9,9 @@ configuration:
   maptiler_key:
     name: MapTiler-API-Key
     description: Kostenloser Key aus dem MapTiler-Konto (cloud.maptiler.com). Nur für den Anbieter maptiler nötig.
+  garmin_sync_interval_hours:
+    name: "Garmin: Abgleich alle … Stunden"
+    description: Abstand des automatischen Abgleichs mit Garmin Connect; 0 schaltet ihn ab.
+  garmin_sync_since:
+    name: "Garmin: Aktivitäten ab"
+    description: Erster Tag (JJJJ-MM-TT), ab dem der erste Abgleich Aktivitäten aus Garmin Connect lädt.

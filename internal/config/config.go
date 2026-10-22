@@ -12,6 +12,7 @@ import (
 	"io/fs"
 	"log/slog"
 	"os"
+	"time"
 )
 
 // Options mirrors the "options"/"schema" section of my_velo/config.yaml.
@@ -19,12 +20,19 @@ type Options struct {
 	LogLevel    string `json:"log_level"`
 	MapProvider string `json:"map_provider"`
 	MapTilerKey string `json:"maptiler_key"`
+	// GarminSyncIntervalHours between automatic Garmin syncs; 0 disables them.
+	GarminSyncIntervalHours int `json:"garmin_sync_interval_hours"`
+	// GarminSyncSince is the first day (YYYY-MM-DD) of the initial Garmin backfill.
+	GarminSyncSince string `json:"garmin_sync_since"`
 }
+
+// DefaultGarminSince is the backfill start if the option is missing or invalid.
+const DefaultGarminSince = "2026-01-01"
 
 // Defaults returns the options used when no options file exists, e.g. during
 // local development.
 func Defaults() Options {
-	return Options{LogLevel: "info", MapProvider: "osm"}
+	return Options{LogLevel: "info", MapProvider: "osm", GarminSyncIntervalHours: 2, GarminSyncSince: DefaultGarminSince}
 }
 
 // Load reads the options file. A missing file yields the defaults; any other
@@ -42,6 +50,22 @@ func Load(path string) (Options, error) {
 		return opts, fmt.Errorf("parse options %s: %w", path, err)
 	}
 	return opts, nil
+}
+
+// GarminSince returns the parsed backfill start; invalid values fall back to
+// DefaultGarminSince, which is reported via ok=false.
+func (o Options) GarminSince() (t time.Time, ok bool) {
+	if t, err := time.Parse(time.DateOnly, o.GarminSyncSince); err == nil {
+		return t, true
+	}
+	t, _ = time.Parse(time.DateOnly, DefaultGarminSince)
+	return t, false
+}
+
+// GarminInterval returns the sync interval, bounded to 0–24 hours.
+func (o Options) GarminInterval() time.Duration {
+	h := min(max(o.GarminSyncIntervalHours, 0), 24)
+	return time.Duration(h) * time.Hour
 }
 
 // SlogLevel maps the add-on log level to a slog level.

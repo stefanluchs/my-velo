@@ -51,11 +51,12 @@
 
 <section class="card" id="goal">
   <h2>Jahresziel {{.Category.Label}}</h2>
-  <form hx-post="stats/goal" hx-swap="none" class="goal-form">
+  <form hx-post="stats/goal" hx-target="#goal-error" hx-swap="innerHTML" class="goal-form">
     <input type="hidden" name="cat" value="{{.Category.ID}}">
     <label><input type="number" name="km" min="0" max="{{.MaxGoal}}" step="1" value="{{with .Goal}}{{.GoalKm}}{{end}}" placeholder="z. B. 4000"> km pro Jahr</label>
     <button type="submit">Speichern</button>
     <span class="hint">Leer lassen oder 0 entfernt das Ziel.</span>
+    <span id="goal-error" class="error" role="alert"></span>
   </form>
 </section>
 

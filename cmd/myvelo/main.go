@@ -26,6 +26,8 @@ import (
 	_ "time/tzdata"
 
 	"github.com/stefanluchs/my-velo/internal/config"
+	"github.com/stefanluchs/my-velo/internal/garmin"
+	"github.com/stefanluchs/my-velo/internal/ha"
 	"github.com/stefanluchs/my-velo/internal/importer"
 	"github.com/stefanluchs/my-velo/internal/store"
 	"github.com/stefanluchs/my-velo/internal/web"
@@ -40,6 +42,7 @@ func main() {
 	importDir := flag.String("import-dir", "/share/myvelo/import", "drop folder for bulk imports")
 	optionsPath := flag.String("options", "", "path to add-on options.json (default <data>/options.json)")
 	dev := flag.Bool("dev", false, "development mode: accept requests from any address")
+	garminFetch := flag.String("garmin-fetch", "garmin-fetch", "garmin-fetch executable")
 	flag.Parse()
 	if *optionsPath == "" {
 		*optionsPath = filepath.Join(*dataDir, "options.json")
@@ -51,13 +54,13 @@ func main() {
 		os.Exit(1)
 	}
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: opts.SlogLevel()}))
-	if err := run(logger, opts, *addr, *dataDir, *importDir, *dev); err != nil {
+	if err := run(logger, opts, *addr, *dataDir, *importDir, *garminFetch, *dev); err != nil {
 		logger.Error("my Velo failed", "err", err)
 		os.Exit(1)
 	}
 }
 
-func run(logger *slog.Logger, opts config.Options, addr, dataDir, importDir string, dev bool) error {
+func run(logger *slog.Logger, opts config.Options, addr, dataDir, importDir, garminFetch string, dev bool) error {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
@@ -85,6 +88,9 @@ func run(logger *slog.Logger, opts config.Options, addr, dataDir, importDir stri
 	jobCtx, cancelJobs := context.WithCancel(context.Background())
 	defer cancelJobs()
 	jobs := web.NewJobs(jobCtx)
+	imp := &importer.Importer{Store: st, RawDir: filepath.Join(dataDir, "raw"), Logger: logger}
+	garminSvc := newGarminService(logger, opts, st, imp, jobs, filepath.Join(dataDir, "garmin"), garminFetch)
+	go garminSvc.RunScheduler(jobCtx, 2*time.Minute)
 
 	handler := web.NewHandler(web.Deps{
 		Info: web.Info{
@@ -94,7 +100,8 @@ func run(logger *slog.Logger, opts config.Options, addr, dataDir, importDir stri
 			MapKeySet:   opts.MapTilerKey != "",
 		},
 		Store:       st,
-		Importer:    &importer.Importer{Store: st, RawDir: filepath.Join(dataDir, "raw"), Logger: logger},
+		Importer:    imp,
+		Garmin:      garminSvc,
 		Jobs:        jobs,
 		ImportDir:   importDir,
 		TempDir:     tempDir,
@@ -126,4 +133,34 @@ func run(logger *slog.Logger, opts config.Options, addr, dataDir, importDir stri
 	web.WaitForJobs(shutdownCtx, jobs)
 	logger.Info("my Velo stopped")
 	return nil
+}
+
+// newGarminService wires the Garmin Connect sync. Tokens live in dir
+// (part of the backups); downloads pass through dir/inbox.
+func newGarminService(logger *slog.Logger, opts config.Options, st *store.Store, imp *importer.Importer,
+	jobs *web.Jobs, dir, command string) *garmin.Service {
+	since, ok := opts.GarminSince()
+	if !ok {
+		logger.Warn("invalid garmin_sync_since, using default", "value", opts.GarminSyncSince, "default", config.DefaultGarminSince)
+	}
+	runner := &garmin.Runner{Command: []string{command}, TokenDir: dir, Logger: logger}
+	svc := &garmin.Service{
+		Runner: runner,
+		Syncer: &garmin.Syncer{
+			Runner: runner, Importer: imp, Store: st, Inbox: filepath.Join(dir, "inbox"),
+			Since: since, Delay: time.Second, Logger: logger,
+		},
+		StartJob: func(label string, fn func(ctx context.Context, report func(importer.Result)) error) error {
+			return jobs.Start(label, fn, nil)
+		},
+		Interval: opts.GarminInterval(),
+		Logger:   logger,
+	}
+	// Assign only a non-nil notifier: a typed nil would not compare equal to nil.
+	if n := ha.FromEnv(); n != nil {
+		svc.Notifier = n
+	}
+	logger.Info("garmin sync configured", "available", runner.Available(), "interval", svc.Interval,
+		"since", since.Format(time.DateOnly), "notifications", svc.Notifier != nil)
+	return svc
 }

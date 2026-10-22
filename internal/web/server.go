@@ -21,6 +21,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/stefanluchs/my-velo/internal/garmin"
 	"github.com/stefanluchs/my-velo/internal/importer"
 	"github.com/stefanluchs/my-velo/internal/sport"
 	"github.com/stefanluchs/my-velo/internal/store"
@@ -52,6 +53,8 @@ type Deps struct {
 	TempDir string
 	// MapTilerKey enables MapTiler basemaps; empty hides them.
 	MapTilerKey string
+	// Garmin is the Garmin Connect sync; nil hides the feature.
+	Garmin *garmin.Service
 	// Now returns the current time in the user's time zone; nil means
 	// time.Now (the add-on gets TZ from Home Assistant).
 	Now    func() time.Time
@@ -78,6 +81,9 @@ var funcs = template.FuncMap{
 	"kmInt":      kmInt,
 	"hours":      hours,
 	"signedKm":   signedKm,
+	"clock":      clock,
+	"loginStep":  func(step string) garminLoginData { return garminLoginData{Step: step} },
+	"every":      every,
 	"pct": func(v float64, of int) float64 {
 		if of == 0 {
 			return 0
@@ -118,12 +124,13 @@ func NewHandler(d Deps) http.Handler {
 	if s.assetVersion == "" || s.assetVersion == "dev" {
 		s.assetVersion = strconv.FormatInt(d.Info.StartedAt.Unix(), 36)
 	}
-	for _, page := range []string{"index.html", "import.html", "activities.html", "activity.html", "heatmap.html", "stats.html"} {
+	for _, page := range []string{"index.html", "import.html", "activities.html", "activity.html", "heatmap.html", "stats.html", "garmin.html"} {
 		s.pages[page] = template.Must(template.New(page).Funcs(funcs).ParseFS(templateFS,
 			"templates/layout.html", "templates/import_status.html", "templates/activity_table.html", "templates/period.html", "templates/"+page))
 	}
 	s.pages[fragmentImportStatus] = s.pages["import.html"]
 	s.pages[fragmentActivityTitle] = s.pages["activity.html"]
+	s.pages[fragmentGarminLogin] = s.pages["garmin.html"]
 
 	static, err := fs.Sub(staticFS, "static")
 	if err != nil {
@@ -142,6 +149,11 @@ func NewHandler(d Deps) http.Handler {
 	mux.Handle("POST /stats/goal", requireHTMX(http.HandlerFunc(s.setGoal)))
 	mux.HandleFunc("GET /heatmap", s.heatmap)
 	mux.HandleFunc("GET /api/tracks", s.tracks)
+	mux.HandleFunc("GET /garmin", s.garminPage)
+	mux.Handle("POST /garmin/login", requireHTMX(http.HandlerFunc(s.garminLogin)))
+	mux.Handle("POST /garmin/mfa", requireHTMX(http.HandlerFunc(s.garminMFA)))
+	mux.Handle("POST /garmin/sync", requireHTMX(http.HandlerFunc(s.garminSync)))
+	mux.Handle("POST /garmin/logout", requireHTMX(http.HandlerFunc(s.garminLogout)))
 	mux.HandleFunc("GET /import", s.importPage)
 	mux.HandleFunc("GET /import/status", s.importStatus)
 	mux.Handle("POST /import/upload", requireHTMX(http.HandlerFunc(s.importUpload)))
@@ -154,21 +166,23 @@ func NewHandler(d Deps) http.Handler {
 const (
 	fragmentImportStatus  = "importStatus"
 	fragmentActivityTitle = "activityTitle"
+	fragmentGarminLogin   = "garminLogin"
 )
 
 // pageData is shared by all full pages.
 type pageData struct {
 	Info
-	AssetVersion string
-	BasePath     string
-	Ingress      bool
-	Nav          string
-	Data         any
+	GarminEnabled bool
+	AssetVersion  string
+	BasePath      string
+	Ingress       bool
+	Nav           string
+	Data          any
 }
 
 func (s *server) render(w http.ResponseWriter, r *http.Request, page, nav string, data any) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	pd := pageData{Info: s.Info, AssetVersion: s.assetVersion, BasePath: BasePath(r), Ingress: r.Header.Get(HeaderIngressPath) != "", Nav: nav, Data: data}
+	pd := pageData{Info: s.Info, GarminEnabled: s.Garmin != nil, AssetVersion: s.assetVersion, BasePath: BasePath(r), Ingress: r.Header.Get(HeaderIngressPath) != "", Nav: nav, Data: data}
 	if err := s.pages[page].ExecuteTemplate(w, "layout", pd); err != nil {
 		s.Logger.Error("render", "page", page, "err", err)
 	}
@@ -201,6 +215,7 @@ func (s *server) health(w http.ResponseWriter, r *http.Request) {
 }
 
 type indexData struct {
+	Garmin     *garmin.Status
 	Count      int
 	Categories []sport.Category
 	Category   sport.Category
@@ -219,6 +234,13 @@ func (s *server) index(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	d := indexData{Count: count, Categories: sport.Categories}
+	if s.Garmin != nil {
+		st, err := s.Garmin.Status(ctx)
+		if err != nil {
+			s.Logger.Warn("garmin status", "err", err)
+		}
+		d.Garmin = &st
+	}
 	if count == 0 {
 		s.render(w, r, "index.html", "index", d)
 		return
