@@ -26,10 +26,10 @@ Diese Prüfungen kann nur der Kontoinhaber durchführen. Ergebnisse bitte im jew
 unter „Ergebnisse“ ergänzen.
 
 - [x] **S3 Abnahme auf dem Pi** – ✅ bestanden am 22.10.2026 mit `v0.0.1` ([Protokoll](spikes/s3-ingress-addon.md#abnahme-auf-dem-pi-22102026))
-- [ ] **S1 Live-Test** mit dem Garmin-Konto – Anleitung: [s1-garmin-fetch.md](spikes/s1-garmin-fetch.md#offen-live-test-durch-stefan)
-  Login mit MFA, `status` am Folgetag (Token-Erneuerung), `sync` einiger Aktivitäten.
-- [ ] **S2 mit eigenem Export** – Garmin-Datenexport anfordern
-  (Garmin-Konto → Datenverwaltung → Daten exportieren; dauert einige Tage), dann
+- [x] **S1 Live-Test** – ✅ Login und Sync von 13 Aktivitäten am 22.10.2026 ([Ergebnisse](spikes/s1-garmin-fetch.md#ergebnisse))
+  - [ ] Token-Erneuerung: frühestens am 23.10.2026 `garmin-fetch status --tokenstore ~/.myvelo-garmin`
+    ausführen; `exit=0` bestätigt den Dauerbetrieb ohne erneute Anmeldung.
+- [ ] **S2 mit eigenem Export** – Export am 22.10.2026 angefordert, in Bearbeitung. Nach Erhalt
   `go run ./cmd/fitinspect <export>.zip`. Klären: Aktivitäts-ID im Dateinamen? `key_source = file_id`
   für fēnix 7 und Edge 550? Gleicher Schlüssel wie beim Download über `garmin-fetch`?
 
