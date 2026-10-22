@@ -81,3 +81,28 @@ flowchart LR
 
 Die Originaldateien unter `raw/` sind die Quelle der Wahrheit: Ändert sich die Auswertung, wird
 `importer.AnalysisVersion` erhöht und neu abgeleitet, ohne die Dateien erneut zu beschaffen.
+
+## Garmin-Sync (ab 0.5.0)
+
+```mermaid
+sequenceDiagram
+    participant UI as Panel / Zeitplan
+    participant S as garmin.Service
+    participant F as garmin-fetch (Python)
+    participant GC as Garmin Connect
+    participant I as Importer/Store
+    UI->>S: SyncNow (Job, max. einer gleichzeitig)
+    S->>F: sync --since (letzter Erfolg − 7 Tage) --known-ids
+    F->>GC: Aktivitätsliste, Original-FIT für unbekannte IDs
+    F-->>S: JSON Lines: activity downloaded / known / no_file, done
+    S->>I: ImportReader(FIT) → AttachSource("garmin", id, Titel)
+    S->>I: SetSourceTitle für bekannte (Umbenennungen)
+    S-->>UI: State in setting garmin.last_state; Exit 2 → HA-Benachrichtigung
+```
+
+- Der **Login** läuft in *einem* `garmin-fetch`-Prozess, der bis zur Eingabe des MFA-Codes wartet
+  (Garmin hält den MFA-Zustand nur im Speicher). Abgebrochene Logins enden nach 5 Minuten.
+- Die Kopplung Go ↔ Python ist ein Prozessaufruf pro Vorgang; Fehlerklassen kommen als Exit-Code
+  (siehe [garmin-fetch/README.md](../garmin-fetch/README.md#exit-codes)).
+- **Namen:** `activity_source.title` merkt sich den letzten Garmin-Titel. Der Name der Aktivität
+  folgt ihm nur, solange er leer ist oder noch diesem Titel entspricht.

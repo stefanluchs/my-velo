@@ -4,9 +4,9 @@
 my Velo speichert und zeigt deine Sportaktivitäten lokal in Home Assistant. Quelle sind die
 Original-FIT-Dateien deiner Geräte.
 
-> **Stand 0.4.0:** Import, Dashboard, Aktivitätenliste, Detailansicht mit Karte und Diagrammen,
-> Statistik mit Jahreszielen und persönliche Heatmap. Der automatische Abgleich mit Garmin
-> Connect folgt.
+> **Stand 0.5.0:** Import und automatischer Abgleich mit Garmin Connect, Dashboard,
+> Aktivitätenliste, Detailansicht mit Karte und Diagrammen, Statistik mit Jahreszielen und
+> persönliche Heatmap.
 
 ## Installation
 
@@ -50,6 +50,32 @@ Wurde das Repository ohne `#stable` hinzugefügt, kann ein Update kurz nach eine
 „An unknown error occurred with app …“ scheitern, weil das Image noch gebaut wird. Abhilfe:
 unter **⋮ → Repositories** den Eintrag entfernen und mit `#stable` neu hinzufügen. Das installierte
 Add-on und seine Daten bleiben dabei erhalten.
+
+## Abgleich mit Garmin Connect
+
+1. Im Panel **Garmin** öffnen, E-Mail und Passwort des Garmin-Kontos eingeben.
+2. Fordert Garmin einen **Bestätigungscode** an (E-Mail oder App), erscheint ein zweites Feld;
+   der Code ist wenige Minuten gültig.
+3. Nach der Anmeldung startet sofort der erste Abgleich ab `garmin_sync_since` (Standard
+   01.01.2026), danach automatisch alle `garmin_sync_interval_hours` Stunden (Standard 2).
+   **Jetzt synchronisieren** startet ihn sofort.
+
+Was dabei passiert:
+
+- Neue Aktivitäten werden als **Original-FIT-Datei** geladen und wie ein Upload importiert. Schon
+  vorhandene Aufzeichnungen (z. B. vorher hochgeladen) werden erkannt und nur mit Garmin verknüpft.
+- Jeder Lauf prüft die letzten 7 Tage erneut. **Namen** aus Garmin Connect werden übernommen und
+  folgen späteren Umbenennungen dort – außer du hast die Aktivität in my Velo umbenannt.
+- Zwischen zwei Downloads wartet my Velo eine Sekunde, um die Schnittstelle zu schonen. Der erste
+  Abgleich mit vielen Aktivitäten dauert deshalb einige Minuten.
+- Das **Passwort** wird nicht gespeichert, nur Zugangstokens in `/data/garmin` (Teil der Backups).
+  **Abmelden** löscht die Tokens.
+- Läuft die Anmeldung ab (Exit `auth_required`), erscheint einmalig eine **Benachrichtigung in
+  Home Assistant**; nach erneuter Anmeldung verschwindet sie.
+
+Hinweis: my Velo nutzt die **inoffizielle** Schnittstelle von Garmin Connect (über
+python-garminconnect). Garmin kann sie ändern; dann hilft meist ein Update von my Velo. Der
+Datei-Import funktioniert unabhängig davon.
 
 ## Übersicht und Statistik
 
@@ -98,6 +124,8 @@ bleiben sichtbar.
 |---|---|---|
 | `log_level` | `info` | `debug`, `info`, `warning` oder `error` |
 | `map_provider` | `osm` | `osm` (ohne Key) oder `maptiler` (Satellit, Key nötig) |
+| `garmin_sync_interval_hours` | `2` | Abstand des automatischen Garmin-Abgleichs in Stunden, `0` schaltet ihn ab |
+| `garmin_sync_since` | `2026-01-01` | erster Tag, ab dem der erste Abgleich Aktivitäten lädt (JJJJ-MM-TT) |
 | `maptiler_key` | leer | kostenloser Key aus [cloud.maptiler.com](https://cloud.maptiler.com); er wird an den Browser übergeben, weil dieser die Kacheln lädt |
 
 ## Daten und Backup
@@ -105,6 +133,8 @@ bleiben sichtbar.
 - Alle Daten liegen im Add-on-Verzeichnis `/data` und sind Teil der Home-Assistant-Backups:
   - `myvelo.db` – Datenbank mit Aktivitäten, Messreihen und Tracks
   - `raw/` – Archiv aller importierten Originaldateien (Grundlage für spätere Neuberechnungen)
+  - `garmin/` – Zugangstokens für Garmin Connect (der Download-Zwischenordner `garmin/inbox` ist
+    vom Backup ausgenommen)
 - Für ein konsistentes Backup der Datenbank stoppt Home Assistant das Add-on während des Backups
   kurz (`backup: cold`).
 

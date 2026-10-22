@@ -10,7 +10,7 @@ Den Gesamtplan mit Anforderungen, Entscheidungen und Begründungen enthält [pla
 |---|---|
 | Evaluierung und Entscheidungen E1–E6 | ✅ abgeschlossen ([plan.md §9](plan.md#9-entscheidungen)) |
 | Phase 0 – Spikes | ✅ technisch erledigt, 🟡 Prüfungen mit echten Daten offen ([spikes/](spikes/README.md)) |
-| Phase 1 – MVP | 🟡 in Arbeit: 1.1–1.7 ✅ (Release `v0.4.0`), nächstes Inkrement **1.8 Garmin-Sync** (`v0.5.0`) |
+| Phase 1 – MVP | 🟡 in Arbeit: 1.1–1.8 ✅ (Release `v0.5.0`); offen **1.9 Doppelaufzeichnungen** (wartet auf S2) und Live-Abnahme des Garmin-Syncs auf dem Pi |
 
 Vorhanden im Repository:
 
@@ -55,7 +55,7 @@ für sich lauffähig, getestet und releasebar ist.
 | 1.5 ✅ | Aktivitätsdetail | MapLibre-Karte, Höhenprofil, uPlot-Charts (Tempo, HF, Leistung, Trittfrequenz) | 1.4 |
 | 1.6 ✅ | Statistik | Summen pro Woche/Monat/Jahr (Distanz, Höhenmeter, Zeit) | 1.2 |
 | 1.7 ✅ | Heatmap | alle Tracks als Linien-Layer, Filter Typ/Zeitraum; Kartenanbieter OSM/MapTiler, Overlay Luftbild Bayern ([plan.md §6.1](plan.md#61-kartenanbieter-satellit--vergleich)) | 1.5 |
-| 1.8 | Garmin-Sync | Go ruft `garmin-fetch` auf: Login-Dialog im Panel (inkl. MFA über stdin), Polling alle 2 h, Knopf „Jetzt synchronisieren“, Statusanzeige; Exit-Codes gemäß [garmin-fetch/README.md](../garmin-fetch/README.md#exit-codes) | 1.3, S1 |
+| 1.8 ✅ | Garmin-Sync | Go ruft `garmin-fetch` auf: Login-Dialog im Panel (inkl. MFA über stdin), Polling alle 2 h, Knopf „Jetzt synchronisieren“, Statusanzeige; Exit-Codes gemäß [garmin-fetch/README.md](../garmin-fetch/README.md#exit-codes) | 1.3, S1 |
 | 1.9 | Doppelaufzeichnungen | fēnix + Edge zur selben Fahrt zu einer Aktivität zusammenführen (Überlappung, Gerätepriorität Edge > fēnix) | 1.2, S2 |
 
 ### Umsetzungsstand und Hinweise für die nächsten Inkremente
@@ -71,6 +71,17 @@ für sich lauffähig, getestet und releasebar ist.
   (GeoJSON, Property `t` = lokale Startzeit als Unix-Sekunden) und filtert im Browser
   (`static/heatmap-data.js`, Node-getestet). Bei sehr vielen Aktivitäten (> 2.000) wären
   serverseitige Vektor-/Raster-Kacheln der nächste Schritt; mit ca. 100 Fahrten pro Jahr unnötig.
+- **1.8 erledigt** (Release `v0.5.0`), aber **noch nicht live gegen Garmin geprüft** (Tests mit
+  gefälschtem `garmin-fetch`; die echten Tokens von S1 wurden bewusst nicht benutzt, um den
+  24-h-Test der Token-Erneuerung nicht zu verfälschen). Aufbau: `internal/garmin` (`Runner` =
+  Prozessaufruf/Exit-Codes, `Session` = Login mit MFA im selben Prozess, `Syncer` = Download →
+  Import → `AttachSource`, `Service` = Job, Zeitplan, HA-Benachrichtigung über `internal/ha`).
+  Sync-Fenster: ab `garmin_sync_since`, danach letzter Erfolg − 7 Tage; Status in `setting`
+  (`garmin.last_sync`, `garmin.last_state`). Namen: `activity_source.title` +
+  `store.SetSourceTitle` (Nutzer-Umbenennung gewinnt).
+- **Abnahme 1.8 auf dem Pi:** Panel → Garmin → Anmelden (ggf. Code) → erster Abgleich ab
+  01.01.2026 läuft automatisch; erwartet: bereits hochgeladene Fahrten „unverändert“, übrige neu,
+  Namen aus Garmin. Danach Log prüfen (`garmin sync finished`) und nach 2 h den automatischen Lauf.
 - **1.6 erledigt** (Release `v0.4.0`): `/stats` und Dashboard auf `/`. Aggregation über
   `store.Aggregate` (Jahr/Monat/ISO-Woche), `store.DailyDistance` für den kumulierten Vergleich,
   Ziele und sonstige Einstellungen in Tabelle `setting` (Migration 0002, die auch
@@ -109,6 +120,9 @@ Eintrag in [my_velo/CHANGELOG.md](../my_velo/CHANGELOG.md), Release über Tag.
 - **Keine persönlichen Daten im Repo:** keine FIT-Dateien, Exporte oder Tokens (siehe `.gitignore`).
   Test-Fixtures werden synthetisch erzeugt (die Beispieldateien des Garmin-SDK dürfen nicht
   weitergegeben werden).
+- **htmx:** Fehlerfragmente mit 4xx werden eingetauscht (`htmx-config` in `layout.html`);
+  Erfolg ohne Inhalt = 204 + ggf. `HX-Refresh`.
+- **Tests:** `go test -race ./...` mit `set -o pipefail`, wenn die Ausgabe gefiltert wird.
 - **Ingress:** nur relative URLs; neue Seiten mit einem Test absichern, der absolute Pfade ausschließt.
 - **Assets:** eigene Dateien mit `?v={{$.AssetVersion}}` einbinden; Fremdbibliotheken in
   versionierten Ordnern unter `static/vendor/` (siehe dortige README), DOM-freie Logik in eigene
