@@ -114,7 +114,7 @@ func TestPagesUseIngressBaseAndRelativeURLs(t *testing.T) {
 			t.Fatalf("%s: status %d", path, w.Code)
 		}
 		body := w.Body.String()
-		for _, want := range []string{`<base href="/api/hassio_ingress/tok3n/">`, `src="static/vendor/htmx-2.0.11.min.js"`, "1.2.3"} {
+		for _, want := range []string{`<base href="/api/hassio_ingress/tok3n/">`, `src="static/vendor/htmx-2.0.11/htmx.min.js"`, "1.2.3"} {
 			if !strings.Contains(body, want) {
 				t.Errorf("%s: missing %q", path, want)
 			}
@@ -156,7 +156,7 @@ func TestStaticAndUnknownRoutes(t *testing.T) {
 	env := newTestEnv(t)
 	for path, want := range map[string]int{
 		"/static/app.css":                   http.StatusOK,
-		"/static/vendor/htmx-2.0.11.min.js": http.StatusOK,
+		"/static/vendor/htmx-2.0.11/htmx.min.js": http.StatusOK,
 		"/does-not-exist":                   http.StatusNotFound,
 	} {
 		if w := env.do(httptest.NewRequest(http.MethodGet, path, nil)); w.Code != want {
