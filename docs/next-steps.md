@@ -60,7 +60,8 @@ für sich lauffähig, getestet und releasebar ist.
 
 ### Umsetzungsstand und Hinweise für die nächsten Inkremente
 
-- **1.1–1.3 erledigt** (Release `v0.1.0`). Mit 13 echten Fahrten geprüft: 37 ms pro Datei, Streams
+- **1.1–1.3 erledigt** (Release `v0.1.0`, auf dem Pi am 22.10.2026 per Update installiert und mit
+  13 hochgeladenen FIT-Dateien geprüft). Mit 13 echten Fahrten geprüft: 37 ms pro Datei, Streams
   belegen ca. 26 % der Rohdaten, Tracks behalten ca. 10 % der Punkte; Re-Import ändert nichts.
 - **Datenzugriff für 1.4–1.7:** `store.List/Get/Stream/Track`; Streams mit
   `importer.DecodeStream` lesen (spaltenweise, `null` = kein Messwert), Tracks mit
