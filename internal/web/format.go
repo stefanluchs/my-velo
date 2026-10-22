@@ -45,6 +45,18 @@ func duration(seconds float64) string {
 	return fmt.Sprintf("%d:%02d:%02d", s/3600, s/60%60, s%60)
 }
 
+// signedKm formats a km difference with sign, e.g. "+12" or "−3".
+func signedKm(v float64) string {
+	n := int(math.Round(v))
+	switch {
+	case n > 0:
+		return fmt.Sprintf("+%d", n)
+	case n < 0:
+		return fmt.Sprintf("−%d", -n)
+	}
+	return "±0"
+}
+
 // hours formats seconds as h:mm for long totals.
 func hours(seconds float64) string {
 	m := int(math.Round(seconds / 60))

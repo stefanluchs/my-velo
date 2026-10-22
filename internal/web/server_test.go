@@ -64,6 +64,10 @@ func TestAllowOnly(t *testing.T) {
 	}
 }
 
+// testNow is the fixed "current time" of the test server: two days after the
+// default fixture ride (2026-05-01).
+var testNow = time.Date(2026, 5, 3, 12, 0, 0, 0, time.UTC)
+
 type testEnv struct {
 	handler   http.Handler
 	store     *store.Store
@@ -88,6 +92,7 @@ func newTestEnv(t *testing.T) *testEnv {
 		Jobs:      env.jobs,
 		ImportDir: env.importDir,
 		TempDir:   env.tempDir,
+		Now:       func() time.Time { return testNow },
 	})
 	return env
 }

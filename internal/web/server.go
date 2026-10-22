@@ -15,6 +15,7 @@ import (
 	"html/template"
 	"io/fs"
 	"log/slog"
+	"math"
 	"net/http"
 	"strconv"
 	"strings"
@@ -51,7 +52,10 @@ type Deps struct {
 	TempDir string
 	// MapTilerKey enables MapTiler basemaps; empty hides them.
 	MapTilerKey string
-	Logger      *slog.Logger
+	// Now returns the current time in the user's time zone; nil means
+	// time.Now (the add-on gets TZ from Home Assistant).
+	Now    func() time.Time
+	Logger *slog.Logger
 }
 
 type server struct {
@@ -73,6 +77,19 @@ var funcs = template.FuncMap{
 	"orDash":     orDash,
 	"kmInt":      kmInt,
 	"hours":      hours,
+	"signedKm":   signedKm,
+	"pct": func(v float64, of int) float64 {
+		if of == 0 {
+			return 0
+		}
+		return math.Min(100, 100*v/float64(of))
+	},
+	"div": func(a float64, b int) float64 {
+		if b == 0 {
+			return 0
+		}
+		return a / float64(b)
+	},
 	"categoriesJSON": func(cs []sport.Category) template.JS {
 		type cat struct {
 			ID    string `json:"id"`
@@ -93,14 +110,17 @@ func NewHandler(d Deps) http.Handler {
 	if d.Logger == nil {
 		d.Logger = slog.New(slog.DiscardHandler)
 	}
+	if d.Now == nil {
+		d.Now = time.Now
+	}
 	s := &server{Deps: d, pages: map[string]*template.Template{}, mapConfig: newMapConfig(d.Info.MapProvider, d.MapTilerKey),
 		assetVersion: d.Info.Version}
 	if s.assetVersion == "" || s.assetVersion == "dev" {
 		s.assetVersion = strconv.FormatInt(d.Info.StartedAt.Unix(), 36)
 	}
-	for _, page := range []string{"index.html", "import.html", "activities.html", "activity.html", "heatmap.html"} {
+	for _, page := range []string{"index.html", "import.html", "activities.html", "activity.html", "heatmap.html", "stats.html"} {
 		s.pages[page] = template.Must(template.New(page).Funcs(funcs).ParseFS(templateFS,
-			"templates/layout.html", "templates/import_status.html", "templates/activity_table.html", "templates/"+page))
+			"templates/layout.html", "templates/import_status.html", "templates/activity_table.html", "templates/period.html", "templates/"+page))
 	}
 	s.pages[fragmentImportStatus] = s.pages["import.html"]
 	s.pages[fragmentActivityTitle] = s.pages["activity.html"]
@@ -118,6 +138,8 @@ func NewHandler(d Deps) http.Handler {
 	mux.HandleFunc("GET /activities/{id}", s.activity)
 	mux.Handle("POST /activities/{id}/name", requireHTMX(http.HandlerFunc(s.rename)))
 	mux.HandleFunc("GET /api/activities/{id}/stream", s.stream)
+	mux.HandleFunc("GET /stats", s.stats)
+	mux.Handle("POST /stats/goal", requireHTMX(http.HandlerFunc(s.setGoal)))
 	mux.HandleFunc("GET /heatmap", s.heatmap)
 	mux.HandleFunc("GET /api/tracks", s.tracks)
 	mux.HandleFunc("GET /import", s.importPage)
@@ -179,10 +201,16 @@ func (s *server) health(w http.ResponseWriter, r *http.Request) {
 }
 
 type indexData struct {
-	Count  int
-	Recent []store.Activity
+	Count      int
+	Categories []sport.Category
+	Category   sport.Category
+	Periods    []PeriodSummary
+	Goal       *GoalProgress
+	Recent     []store.Activity
 }
 
+// index is the dashboard: totals of the current week, month and year for one
+// sport category, the yearly goal and the latest activities.
 func (s *server) index(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	count, err := s.Store.Count(ctx)
@@ -190,13 +218,45 @@ func (s *server) index(w http.ResponseWriter, r *http.Request) {
 		s.serverError(w, "count activities", err)
 		return
 	}
-	recent, err := s.Store.List(ctx, store.ListFilter{Limit: 20})
-	if err != nil {
+	d := indexData{Count: count, Categories: sport.Categories}
+	if count == 0 {
+		s.render(w, r, "index.html", "index", d)
+		return
+	}
+	var ok bool
+	if d.Category, ok = sport.ByID(r.URL.Query().Get("cat")); !ok {
+		d.Category, _ = sport.ByID(defaultCategory)
+	}
+	today := localDate(s.now())
+	tomorrow := today.AddDate(0, 0, 1)
+	base := categoryFilter(d.Category.ID)
+	for _, p := range []struct {
+		label string
+		from  time.Time
+	}{
+		{"Diese Woche", weekStart(today)},
+		{"Dieser Monat", monthStart(today)},
+		{"Dieses Jahr", yearStart(today.Year())},
+	} {
+		sum, err := s.periodSummary(ctx, p.label, base, p.from, tomorrow)
+		if err != nil {
+			s.serverError(w, "sum period", err)
+			return
+		}
+		d.Periods = append(d.Periods, sum)
+	}
+	if d.Goal, err = s.goalProgress(ctx, d.Category.ID, today.Year(), today); err != nil {
+		s.serverError(w, "goal", err)
+		return
+	}
+	if d.Recent, err = s.Store.List(ctx, store.ListFilter{Limit: 10}); err != nil {
 		s.serverError(w, "list activities", err)
 		return
 	}
-	s.render(w, r, "index.html", "index", indexData{Count: count, Recent: recent})
+	s.render(w, r, "index.html", "index", d)
 }
+
+func (s *server) now() time.Time { return s.Deps.Now() }
 
 func (s *server) serverError(w http.ResponseWriter, what string, err error) {
 	s.Logger.Error(what, "err", err)
