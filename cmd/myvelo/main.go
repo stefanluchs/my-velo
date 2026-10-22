@@ -21,6 +21,9 @@ import (
 	"path/filepath"
 	"syscall"
 	"time"
+	// The Alpine image has no zoneinfo; embedding it lets time.Local follow the
+	// TZ variable that the Supervisor passes to every add-on.
+	_ "time/tzdata"
 
 	"github.com/stefanluchs/my-velo/internal/config"
 	"github.com/stefanluchs/my-velo/internal/importer"
@@ -105,7 +108,8 @@ func run(logger *slog.Logger, opts config.Options, addr, dataDir, importDir stri
 	srv := &http.Server{Addr: addr, Handler: handler, ReadHeaderTimeout: 10 * time.Second}
 	errCh := make(chan error, 1)
 	go func() { errCh <- srv.ListenAndServe() }()
-	logger.Info("my Velo started", "version", version, "addr", addr, "data", dataDir, "import_dir", importDir, "dev", dev)
+	logger.Info("my Velo started", "version", version, "addr", addr, "data", dataDir, "import_dir", importDir,
+		"timezone", time.Local.String(), "dev", dev)
 
 	select {
 	case err := <-errCh:
