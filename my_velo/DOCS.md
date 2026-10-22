@@ -4,8 +4,9 @@
 my Velo speichert und zeigt deine Sportaktivitäten lokal in Home Assistant. Quelle sind die
 Original-FIT-Dateien deiner Geräte.
 
-> **Stand 0.3.0:** Import, Aktivitätenliste mit Filtern, Detailansicht mit Karte und Diagrammen
-> sowie persönliche Heatmap. Statistik und der automatische Abgleich mit Garmin Connect folgen.
+> **Stand 0.4.0:** Import, Dashboard, Aktivitätenliste, Detailansicht mit Karte und Diagrammen,
+> Statistik mit Jahreszielen und persönliche Heatmap. Der automatische Abgleich mit Garmin
+> Connect folgt.
 
 ## Installation
 
@@ -49,6 +50,17 @@ Wurde das Repository ohne `#stable` hinzugefügt, kann ein Update kurz nach eine
 „An unknown error occurred with app …“ scheitern, weil das Image noch gebaut wird. Abhilfe:
 unter **⋮ → Repositories** den Eintrag entfernen und mit `#stable` neu hinzufügen. Das installierte
 Add-on und seine Daten bleiben dabei erhalten.
+
+## Übersicht und Statistik
+
+- Die **Übersicht** zeigt Woche, Monat und Jahr bis heute für die gewählte Sportart; „Vorjahr“
+  vergleicht mit denselben Kalendertagen des Vorjahres.
+- Unter **Statistik** gibt es Balken pro Monat oder Kalenderwoche (ISO, Woche beginnt Montag), den
+  kumulierten Jahresvergleich und die Tabelle aller Jahre.
+- **Jahresziel:** unten auf der Statistikseite je Sportart in km eintragen. Der Strich im
+  Fortschrittsbalken markiert das Soll für heute; die Hochrechnung setzt das bisherige Tempo fort.
+- Aktivitäten zählen zu dem Tag, an dem sie nach Ortszeit des Geräts begonnen haben. „Heute“ folgt
+  der Zeitzone von Home Assistant.
 
 ## Heatmap
 
