@@ -179,7 +179,7 @@ func TestMapConfig(t *testing.T) {
 			t.Error("MapTiler must be hidden without key")
 		}
 	}
-	if cfg.Default != "osm" || len(cfg.Overlays) != 1 || !strings.Contains(cfg.Overlays[0].Tiles[0], "{bbox-epsg-3857}") {
+	if cfg.Default != "osm" || len(cfg.Overlays) != 1 || !strings.Contains(cfg.Overlays[0].Tiles[0], "{bbox-epsg-3857}") || !strings.Contains(cfg.Overlays[0].Tiles[0], "TRANSPARENT=TRUE") {
 		t.Errorf("config %+v", cfg)
 	}
 	cfg = newMapConfig("maptiler", "a&b")

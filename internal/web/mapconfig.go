@@ -64,9 +64,11 @@ func newMapConfig(provider, mapTilerKey string) MapConfig {
 		Overlays: []Basemap{
 			{
 				// WMS GetMap with the bbox placeholder that MapLibre fills per tile.
+				// Transparent PNG: outside Bavaria the basemap stays visible
+				// (JPEG would paint those areas grey).
 				ID: "dop-by", Label: "Luftbild Bayern (DOP40)", TileSize: 256, MaxZoom: 20,
 				Tiles: []string{"https://geoservices.bayern.de/od/wms/dop/v1/dop40?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetMap" +
-					"&LAYERS=by_dop40c&STYLES=&CRS=EPSG:3857&BBOX={bbox-epsg-3857}&WIDTH=256&HEIGHT=256&FORMAT=image/jpeg"},
+					"&LAYERS=by_dop40c&STYLES=&CRS=EPSG:3857&BBOX={bbox-epsg-3857}&WIDTH=256&HEIGHT=256&FORMAT=image/png&TRANSPARENT=TRUE"},
 				Attribution: dopBayernAttribution,
 			},
 		},
