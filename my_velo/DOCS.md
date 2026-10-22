@@ -4,8 +4,8 @@
 my Velo speichert und zeigt deine Sportaktivitäten lokal in Home Assistant. Quelle sind die
 Original-FIT-Dateien deiner Geräte.
 
-> **Stand 0.1.0:** Import und Aktivitätsliste. Karten, Statistik, Heatmap und der automatische
-> Abgleich mit Garmin Connect folgen in den nächsten Versionen.
+> **Stand 0.2.0:** Import, Aktivitätenliste mit Filtern und Detailansicht mit Karte und
+> Diagrammen. Heatmap, Statistik und der automatische Abgleich mit Garmin Connect folgen.
 
 ## Installation
 
@@ -50,13 +50,29 @@ Wurde das Repository ohne `#stable` hinzugefügt, kann ein Update kurz nach eine
 unter **⋮ → Repositories** den Eintrag entfernen und mit `#stable` neu hinzufügen. Das installierte
 Add-on und seine Daten bleiben dabei erhalten.
 
+## Karten
+
+Die Kartenkacheln lädt der Browser direkt von den Anbietern; dafür braucht das Gerät, auf dem das
+Panel geöffnet ist, Internetzugang. Über das Kartensymbol oben links wählst du die Ebene:
+
+| Ebene | Hinweise |
+|---|---|
+| OpenStreetMap | Standard, ohne Key |
+| CyclOSM | Radwege und Oberflächen hervorgehoben |
+| OpenTopoMap | Höhenlinien und Relief |
+| MapTiler Outdoor / Satellit | nur sichtbar, wenn `maptiler_key` gesetzt ist |
+| Luftbild Bayern (DOP40) | amtliches Luftbild der Bayerischen Vermessungsverwaltung, 40 cm; nur innerhalb Bayerns, als Ebene über der Grundkarte |
+
+Die Wahl wird im Browser gespeichert. Die Quellenangaben unten rechts sind Teil der Lizenzen und
+bleiben sichtbar.
+
 ## Optionen
 
 | Option | Standard | Beschreibung |
 |---|---|---|
 | `log_level` | `info` | `debug`, `info`, `warning` oder `error` |
 | `map_provider` | `osm` | `osm` (ohne Key) oder `maptiler` (Satellit, Key nötig) |
-| `maptiler_key` | leer | kostenloser Key aus [cloud.maptiler.com](https://cloud.maptiler.com) |
+| `maptiler_key` | leer | kostenloser Key aus [cloud.maptiler.com](https://cloud.maptiler.com); er wird an den Browser übergeben, weil dieser die Kacheln lädt |
 
 ## Daten und Backup
 

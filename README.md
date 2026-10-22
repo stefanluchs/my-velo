@@ -6,8 +6,8 @@ my Velo zeigt einzelne Aktivitäten mit Karte, die Historie mit Statistiken und 
 Heatmap, ohne Abo und ohne zusätzliche Cloud-Plattform. Die Daten stammen aus den Original-FIT-Dateien
 der Garmin-Geräte und bleiben lokal auf der Home-Assistant-Instanz.
 
-> **Status: Phase 1 (MVP) in Arbeit – Version 0.1.0.** Aktivitäten lassen sich importieren
-> (Upload, Import-Ordner, Garmin-Gesamtexport) und werden in einer Übersicht gelistet.
+> **Status: Phase 1 (MVP) in Arbeit – Version 0.2.0.** Aktivitäten lassen sich importieren
+> (Upload, Import-Ordner, Garmin-Gesamtexport), filtern und mit Karte und Diagrammen ansehen.
 >
 > - **Weitermachen:** [docs/next-steps.md](docs/next-steps.md) – Arbeitsstand, offene Prüfungen, Phase-1-Zuschnitt
 > - **Plan und Entscheidungen:** [docs/plan.md](docs/plan.md)
@@ -40,7 +40,7 @@ Details stehen in [docs/architecture.md](docs/architecture.md).
 |---|---|
 | [`cmd/myvelo`](cmd/myvelo) | Einstiegspunkt des Go-Servers (Ingress-Panel) |
 | [`cmd/fitinspect`](cmd/fitinspect) | Werkzeug zum Prüfen von FIT-Dateien und Garmin-Exporten |
-| [`internal/`](internal) | Go-Pakete: `web` (Panel), `store` (SQLite), `importer`, `fitfile`, `geo`, `config` |
+| [`internal/`](internal) | Go-Pakete: `web` (Panel, Templates, Browser-Module), `store` (SQLite), `importer`, `fitfile`, `geo`, `sport`, `config` |
 | [`garmin-fetch/`](garmin-fetch) | Python-Fetcher für Garmin Connect |
 | [`my_velo/`](my_velo) | Home-Assistant-Add-on-Definition |
 | [`docs/`](docs) | Plan, Architektur, nächste Schritte, Spike-Ergebnisse, Release-Prozess |
