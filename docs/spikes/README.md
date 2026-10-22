@@ -9,7 +9,7 @@ Punkte.
 |---|---|---|
 | [S1 – Garmin-Fetcher](s1-garmin-fetch.md) | Lassen sich neue Aktivitäten als Original-FIT ohne Drittplattform automatisch abholen, inkl. MFA? | 🟡 technisch vorbereitet, Live-Test mit eigenem Konto offen |
 | [S2 – FIT-Parsing](s2-fit-parsing.md) | Liefert `muktihari/fit` alle Daten und einen stabilen Schlüssel für idempotente Importe? | ✅ bestätigt, Prüfung mit eigenem Export offen |
-| [S3 – Ingress-Add-on](s3-ingress-addon.md) | Läuft ein Go-Server als Add-on korrekt hinter dem Home-Assistant-Ingress? | ✅ technisch bestätigt, Abnahme auf dem Pi offen |
+| [S3 – Ingress-Add-on](s3-ingress-addon.md) | Läuft ein Go-Server als Add-on korrekt hinter dem Home-Assistant-Ingress? | ✅ abgeschlossen, Abnahme auf dem Pi bestanden |
 
 ## Zwischenfazit Phase 0
 
@@ -19,4 +19,4 @@ Emulation. Für den Abschluss von Phase 0 fehlen nur Prüfungen mit echten Daten
 
 1. **S1 Live-Test** mit dem eigenen Garmin-Konto (Login, MFA, Token-Erneuerung, Download).
 2. **S2** mit dem eigenen Garmin-Gesamtexport (Dateinamen, Schlüssel beider Geräte, Doppelaufzeichnungen).
-3. **S3 Abnahme** auf dem Raspberry Pi; das Release `v0.0.1` ist bereits veröffentlicht.
+3. ~~**S3 Abnahme** auf dem Raspberry Pi~~ – ✅ bestanden am 22.10.2026.

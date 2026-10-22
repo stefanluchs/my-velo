@@ -25,12 +25,7 @@ Vorhanden im Repository:
 Diese Prüfungen kann nur der Kontoinhaber durchführen. Ergebnisse bitte im jeweiligen Spike-Dokument
 unter „Ergebnisse“ ergänzen.
 
-- [ ] **S3 Abnahme auf dem Pi** – Anleitung: [release.md](release.md), [s3-ingress-addon.md](spikes/s3-ingress-addon.md#offene-punkte--abnahme-auf-dem-pi)
-  1. Release `v0.0.1` ist veröffentlicht; die Images `ghcr.io/stefanluchs/my-velo-{aarch64,amd64}:0.0.1`
-     sind öffentlich abrufbar (anonym geprüft am 22.10.2026).
-  2. In Home Assistant das Repository `https://github.com/stefanluchs/my-velo` hinzufügen,
-     Add-on installieren und starten.
-  3. Panel „my Velo“ öffnen: „Über Ingress = ja“ und „API-Aufruf ✅“.
+- [x] **S3 Abnahme auf dem Pi** – ✅ bestanden am 22.10.2026 mit `v0.0.1` ([Protokoll](spikes/s3-ingress-addon.md#abnahme-auf-dem-pi-22102026))
 - [ ] **S1 Live-Test** mit dem Garmin-Konto – Anleitung: [s1-garmin-fetch.md](spikes/s1-garmin-fetch.md#offen-live-test-durch-stefan)
   Login mit MFA, `status` am Folgetag (Token-Erneuerung), `sync` einiger Aktivitäten.
 - [ ] **S2 mit eigenem Export** – Garmin-Datenexport anfordern
