@@ -10,7 +10,8 @@ Original-FIT-Dateien deiner Geräte.
 ## Installation
 
 1. In Home Assistant **Einstellungen → Add-ons → Add-on-Store** öffnen.
-2. Über **⋮ → Repositories** die URL `https://github.com/stefanluchs/my-velo` hinzufügen.
+2. Über **⋮ → Repositories** die URL `https://github.com/stefanluchs/my-velo#stable` hinzufügen.
+   Der Zusatz `#stable` sorgt dafür, dass Home Assistant nur fertig veröffentlichte Versionen anbietet.
 3. **my Velo** auswählen und installieren.
 4. Unter **Konfiguration** die Optionen setzen (siehe unten) und das Add-on starten.
 5. **In Seitenleiste anzeigen** aktivieren. Das Panel „my Velo“ erscheint in der Seitenleiste.
@@ -41,6 +42,13 @@ Hinweise:
 - Dateien, die keine Aktivitäten sind (z. B. Geräteeinstellungen im Garmin-Export), werden als
   Fehler aufgeführt und übersprungen.
 - Die Dateien im Import-Ordner bleiben liegen; nach erfolgreichem Import können sie gelöscht werden.
+
+### Umstellung von älteren Installationen
+
+Wurde das Repository ohne `#stable` hinzugefügt, kann ein Update kurz nach einer neuen Version mit
+„An unknown error occurred with app …“ scheitern, weil das Image noch gebaut wird. Abhilfe:
+unter **⋮ → Repositories** den Eintrag entfernen und mit `#stable` neu hinzufügen. Das installierte
+Add-on und seine Daten bleiben dabei erhalten.
 
 ## Optionen
 

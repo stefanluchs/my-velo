@@ -11,7 +11,8 @@
    ```
 
 3. Der Workflow [release.yml](../.github/workflows/release.yml) prüft, dass Tag und Add-on-Version
-   übereinstimmen, und veröffentlicht `ghcr.io/stefanluchs/my-velo-aarch64` und `-amd64`.
+   übereinstimmen, veröffentlicht `ghcr.io/stefanluchs/my-velo-aarch64` und `-amd64` und setzt
+   danach den Branch **`stable`** auf den Tag.
 4. **Sichtbarkeit:** Die Pakete übernehmen über das Label `org.opencontainers.image.source` die
    Sichtbarkeit des öffentlichen Repositorys und sind ohne Anmeldung abrufbar (bestätigt mit
    `v0.0.1`). Prüfen bei Bedarf:
@@ -25,3 +26,14 @@
 
    Liefert die Prüfung `401`, das Paket unter GitHub → Packages → Package settings auf **public** stellen.
 5. Home Assistant zeigt das Update im Add-on-Store an (ggf. **⋮ → Nach Updates suchen**).
+
+## Warum der Branch `stable`?
+
+Home Assistant liest `my_velo/config.yaml` aus dem Branch der Repository-URL und bietet die dort
+stehende Version sofort an. Zeigt die URL auf `main`, sieht Home Assistant die neue Version schon
+beim Push, während das Image noch gebaut wird (ca. 1–2 Minuten). Ein Update in diesem Fenster
+scheitert mit „An unknown error occurred with app …“ (am 22.10.2026 mit 0.1.0 passiert).
+
+Deshalb ist in Home Assistant `https://github.com/stefanluchs/my-velo#stable` eingetragen.
+`stable` wird nur vom Release-Workflow bewegt, und zwar erst nachdem alle Images veröffentlicht sind.
+Nie manuell auf `stable` committen.

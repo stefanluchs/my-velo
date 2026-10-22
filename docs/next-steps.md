@@ -92,6 +92,8 @@ Eintrag in [my_velo/CHANGELOG.md](../my_velo/CHANGELOG.md), Release über Tag.
 - **Backup:** Das Add-on läuft mit `backup: cold`, weil SQLite (WAL) nur ohne aktiven Schreiber
   konsistent kopiert wird.
 - **CSRF:** zustandsändernde Endpunkte nur per POST mit `requireHTMX` (Header `HX-Request`).
+- **Releases:** Home Assistant folgt dem Branch `stable`, den nur der Release-Workflow nach
+  erfolgreichem Image-Build bewegt ([release.md](release.md#warum-der-branch-stable)).
 - **Versionen:** Git-Tag `vX.Y.Z` = `version` in [my_velo/config.yaml](../my_velo/config.yaml) (CI prüft das).
 
 ## Entwicklungsumgebung
