@@ -6,8 +6,12 @@ my Velo zeigt einzelne Aktivitäten mit Karte, die Historie mit Statistiken und 
 Heatmap, ohne Abo und ohne zusätzliche Cloud-Plattform. Die Daten stammen aus den Original-FIT-Dateien
 der Garmin-Geräte und bleiben lokal auf der Home-Assistant-Instanz.
 
-> **Status: Phase 0 (Spikes).** Das Repository enthält technische Durchstiche, noch keine
-> nutzbare Anwendung. Ergebnisse und offene Punkte stehen in [docs/spikes](docs/spikes/).
+> **Status: Phase 0 (Spikes) technisch abgeschlossen.** Das Repository enthält technische
+> Durchstiche, noch keine nutzbare Anwendung.
+>
+> - **Weitermachen:** [docs/next-steps.md](docs/next-steps.md) – Arbeitsstand, offene Prüfungen, Phase-1-Zuschnitt
+> - **Plan und Entscheidungen:** [docs/plan.md](docs/plan.md)
+> - **Spike-Ergebnisse:** [docs/spikes](docs/spikes/README.md)
 
 ## Ziele
 
@@ -39,7 +43,7 @@ Details stehen in [docs/architecture.md](docs/architecture.md).
 | [`internal/`](internal) | Go-Pakete (Server, FIT-Verarbeitung) |
 | [`garmin-fetch/`](garmin-fetch) | Python-Fetcher für Garmin Connect |
 | [`my_velo/`](my_velo) | Home-Assistant-Add-on-Definition |
-| [`docs/`](docs) | Architektur, Entscheidungen, Spike-Ergebnisse |
+| [`docs/`](docs) | Plan, Architektur, nächste Schritte, Spike-Ergebnisse, Release-Prozess |
 
 ## Entwicklung
 
