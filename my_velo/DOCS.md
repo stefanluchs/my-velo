@@ -4,8 +4,8 @@
 my Velo speichert und zeigt deine Sportaktivitäten lokal in Home Assistant. Quelle sind die
 Original-FIT-Dateien deiner Geräte.
 
-> **Stand 0.2.0:** Import, Aktivitätenliste mit Filtern und Detailansicht mit Karte und
-> Diagrammen. Heatmap, Statistik und der automatische Abgleich mit Garmin Connect folgen.
+> **Stand 0.3.0:** Import, Aktivitätenliste mit Filtern, Detailansicht mit Karte und Diagrammen
+> sowie persönliche Heatmap. Statistik und der automatische Abgleich mit Garmin Connect folgen.
 
 ## Installation
 
@@ -49,6 +49,20 @@ Wurde das Repository ohne `#stable` hinzugefügt, kann ein Update kurz nach eine
 „An unknown error occurred with app …“ scheitern, weil das Image noch gebaut wird. Abhilfe:
 unter **⋮ → Repositories** den Eintrag entfernen und mit `#stable` neu hinzufügen. Das installierte
 Add-on und seine Daten bleiben dabei erhalten.
+
+## Heatmap
+
+Unter **Heatmap** liegen alle Aktivitäten mit GPS-Daten übereinander. Jede Fahrt ist eine
+schwache Linie; je öfter eine Strecke gefahren wurde, desto kräftiger erscheint sie.
+
+- **Sport** und **Zeitraum** filtern sofort, ohne Neuladen; darüber stehen Anzahl und Kilometer
+  der Auswahl.
+- **Farbe nach Sport** unterscheidet Rad, Laufen und Wandern; **Karte abdunkeln** hebt die Linien hervor.
+- **Auf Auswahl zoomen** passt den Ausschnitt an die gefilterten Aktivitäten an.
+- Ein Klick auf eine Linie listet die Aktivitäten an dieser Stelle; der Link öffnet die Detailansicht.
+
+Die Heatmap nutzt die vereinfachten Tracks (Genauigkeit ca. 2 m), damit auch viele Aktivitäten
+flüssig dargestellt werden.
 
 ## Karten
 

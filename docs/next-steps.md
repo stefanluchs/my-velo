@@ -10,7 +10,7 @@ Den Gesamtplan mit Anforderungen, Entscheidungen und Begründungen enthält [pla
 |---|---|
 | Evaluierung und Entscheidungen E1–E6 | ✅ abgeschlossen ([plan.md §9](plan.md#9-entscheidungen)) |
 | Phase 0 – Spikes | ✅ technisch erledigt, 🟡 Prüfungen mit echten Daten offen ([spikes/](spikes/README.md)) |
-| Phase 1 – MVP | 🟡 in Arbeit: 1.1–1.5 ✅ (Release `v0.2.0`), nächstes Inkrement **1.7 Heatmap** (`v0.3.0`) |
+| Phase 1 – MVP | 🟡 in Arbeit: 1.1–1.5 und 1.7 ✅ (Release `v0.3.0`), nächstes Inkrement **1.6 Statistik** (`v0.4.0`) |
 
 Vorhanden im Repository:
 
@@ -54,7 +54,7 @@ für sich lauffähig, getestet und releasebar ist.
 | 1.4 ✅ | Aktivitätenliste | Liste mit Filter (Typ, Zeitraum), Kennzahlen | 1.2 |
 | 1.5 ✅ | Aktivitätsdetail | MapLibre-Karte, Höhenprofil, uPlot-Charts (Tempo, HF, Leistung, Trittfrequenz) | 1.4 |
 | 1.6 | Statistik | Summen pro Woche/Monat/Jahr (Distanz, Höhenmeter, Zeit) | 1.2 |
-| 1.7 | Heatmap | alle Tracks als Linien-Layer, Filter Typ/Zeitraum; Kartenanbieter OSM/MapTiler, Overlay Luftbild Bayern ([plan.md §6.1](plan.md#61-kartenanbieter-satellit--vergleich)) | 1.5 |
+| 1.7 ✅ | Heatmap | alle Tracks als Linien-Layer, Filter Typ/Zeitraum; Kartenanbieter OSM/MapTiler, Overlay Luftbild Bayern ([plan.md §6.1](plan.md#61-kartenanbieter-satellit--vergleich)) | 1.5 |
 | 1.8 | Garmin-Sync | Go ruft `garmin-fetch` auf: Login-Dialog im Panel (inkl. MFA über stdin), Polling alle 2 h, Knopf „Jetzt synchronisieren“, Statusanzeige; Exit-Codes gemäß [garmin-fetch/README.md](../garmin-fetch/README.md#exit-codes) | 1.3, S1 |
 | 1.9 | Doppelaufzeichnungen | fēnix + Edge zur selben Fahrt zu einer Aktivität zusammenführen (Überlappung, Gerätepriorität Edge > fēnix) | 1.2, S2 |
 
@@ -67,6 +67,14 @@ für sich lauffähig, getestet und releasebar ist.
   Summen), Detail `/activities/{id}` mit Karte, Diagrammen und Umbenennen. Kartenmodule:
   `static/map.js` (MapLibre, Ebenenwahl) und `static/map-style.js` (DOM-frei, Node-getestet);
   Kartenebenen kommen aus `internal/web/mapconfig.go`. Sportkategorien zentral in `internal/sport`.
+- **1.7 erledigt** (Release `v0.3.0`): `/heatmap` lädt alle Tracks einmal über `/api/tracks`
+  (GeoJSON, Property `t` = lokale Startzeit als Unix-Sekunden) und filtert im Browser
+  (`static/heatmap-data.js`, Node-getestet). Bei sehr vielen Aktivitäten (> 2.000) wären
+  serverseitige Vektor-/Raster-Kacheln der nächste Schritt; mit ca. 100 Fahrten pro Jahr unnötig.
+- **Hinweise für 1.6 Statistik:** Summen über `store.Totals` mit `ListFilter` (lokale Datumsgrenzen
+  sind dort schon korrekt); für Wochen/Monate eine Gruppierungsabfrage über
+  `strftime(…, start_time + tz_offset_s, 'unixepoch')` ergänzen. Jahresvergleich kumuliert und
+  Ziele (km/Jahr) sind in [plan.md §7](plan.md#7-funktionskonzept) beschrieben; Diagramme mit uPlot.
 - **Offen aus 1.5:** MapTiler-Ebenen sind ohne Key ungetestet (URL-Schema
   `api.maptiler.com/maps/{outdoor-v2|hybrid}/256/…`); beim ersten Key prüfen.
 - **Reihenfolge ab hier** (Entscheidung 22.10.2026): 1.7 Heatmap (`v0.3.0`) → 1.6 Statistik

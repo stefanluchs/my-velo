@@ -6,8 +6,9 @@ my Velo zeigt einzelne Aktivitäten mit Karte, die Historie mit Statistiken und 
 Heatmap, ohne Abo und ohne zusätzliche Cloud-Plattform. Die Daten stammen aus den Original-FIT-Dateien
 der Garmin-Geräte und bleiben lokal auf der Home-Assistant-Instanz.
 
-> **Status: Phase 1 (MVP) in Arbeit – Version 0.2.0.** Aktivitäten lassen sich importieren
-> (Upload, Import-Ordner, Garmin-Gesamtexport), filtern und mit Karte und Diagrammen ansehen.
+> **Status: Phase 1 (MVP) in Arbeit – Version 0.3.0.** Aktivitäten lassen sich importieren
+> (Upload, Import-Ordner, Garmin-Gesamtexport), filtern, mit Karte und Diagrammen ansehen und
+> als persönliche Heatmap darstellen.
 >
 > - **Weitermachen:** [docs/next-steps.md](docs/next-steps.md) – Arbeitsstand, offene Prüfungen, Phase-1-Zuschnitt
 > - **Plan und Entscheidungen:** [docs/plan.md](docs/plan.md)
