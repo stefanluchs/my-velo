@@ -83,7 +83,7 @@ func encode(t *testing.T, f fixture) []byte {
 		SetTotalTimerTime(uint32(f.points*1000)).
 		SetTotalElapsedTime(uint32(f.points*1000)).
 		SetTotalAscent(12))
-	act.Activity = mesgdef.NewActivity(nil).SetTimestamp(end).SetNumSessions(1).SetType(typedef.ActivityManual)
+	act.Activity = mesgdef.NewActivity(nil).SetTimestamp(end).SetLocalTimestamp(end.Add(2 * time.Hour)).SetNumSessions(1).SetType(typedef.ActivityManual)
 
 	fit := act.ToFIT(nil)
 	var buf bytes.Buffer

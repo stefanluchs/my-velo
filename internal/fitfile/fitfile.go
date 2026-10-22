@@ -30,34 +30,60 @@ import (
 // few MB even for multi-day recordings.
 const MaxFileSize = 64 << 20
 
-// Summary is the condensed view of one FIT activity file.
+// Summary is the condensed view of one FIT activity file. Integer metrics use
+// 0 for "not recorded" (e.g. no heart rate strap).
 type Summary struct {
-	Key          string    `json:"key"`
-	KeySource    string    `json:"key_source"` // "file_id" or "sha256"
-	SHA256       string    `json:"sha256"`
-	FileType     string    `json:"file_type"`
-	Manufacturer string    `json:"manufacturer"`
-	Product      uint16    `json:"product"`
-	ProductName  string    `json:"product_name,omitempty"`
-	Serial       uint32    `json:"serial_number"`
-	TimeCreated  time.Time `json:"time_created"`
+	Key            string    `json:"key"`
+	KeySource      string    `json:"key_source"` // "file_id" or "sha256"
+	SHA256         string    `json:"sha256"`
+	FileType       string    `json:"file_type"`
+	Manufacturer   string    `json:"manufacturer"`
+	ManufacturerID uint16    `json:"manufacturer_id"`
+	Product        uint16    `json:"product"`
+	ProductName    string    `json:"product_name,omitempty"`
+	Serial         uint32    `json:"serial_number"`
+	TimeCreated    time.Time `json:"time_created"`
 
 	Sport     string    `json:"sport"`
 	SubSport  string    `json:"sub_sport"`
 	Sessions  int       `json:"sessions"`
 	StartTime time.Time `json:"start_time"`
-	DistanceM float64   `json:"distance_m"`
-	TimerS    float64   `json:"timer_s"`
-	ElapsedS  float64   `json:"elapsed_s"`
-	AscentM   int       `json:"ascent_m"`
+	// TZOffsetS is the device's UTC offset at the time of the activity; it
+	// assigns activities to local days, weeks and months.
+	TZOffsetS int     `json:"tz_offset_s"`
+	DistanceM float64 `json:"distance_m"`
+	TimerS    float64 `json:"timer_s"`
+	ElapsedS  float64 `json:"elapsed_s"`
+	AscentM   int     `json:"ascent_m"`
+	DescentM  int     `json:"descent_m"`
 
-	Records     int  `json:"records"`
-	GPSPoints   int  `json:"gps_points"`
-	HasHR       bool `json:"has_heart_rate"`
-	HasPower    bool `json:"has_power"`
-	HasCadence  bool `json:"has_cadence"`
-	HasAltitude bool `json:"has_altitude"`
-	DevFields   int  `json:"developer_fields"`
+	AvgSpeed   float64 `json:"avg_speed_mps"`
+	MaxSpeed   float64 `json:"max_speed_mps"`
+	AvgHR      int     `json:"avg_heart_rate"`
+	MaxHR      int     `json:"max_heart_rate"`
+	AvgPower   int     `json:"avg_power"`
+	MaxPower   int     `json:"max_power"`
+	AvgCadence int     `json:"avg_cadence"`
+
+	Records     int   `json:"records"`
+	GPSPoints   int   `json:"gps_points"`
+	HasHR       bool  `json:"has_heart_rate"`
+	HasPower    bool  `json:"has_power"`
+	HasCadence  bool  `json:"has_cadence"`
+	HasAltitude bool  `json:"has_altitude"`
+	DevFields   int   `json:"developer_fields"`
+	BBox        *BBox `json:"bbox,omitempty"`
+}
+
+// BBox is the bounding box of all GPS points in degrees.
+type BBox struct {
+	MinLat, MinLon, MaxLat, MaxLon float64
+}
+
+// Activity is a decoded activity file: summary plus per-record streams.
+type Activity struct {
+	Summary
+	Stream Stream
 }
 
 // IdentityKey returns the natural key of a recording, or "" if the file_id is
@@ -70,37 +96,55 @@ func IdentityKey(id *mesgdef.FileId) string {
 	return fmt.Sprintf("fit:%d:%d:%d", uint16(id.Manufacturer), id.SerialNumber, id.TimeCreated.Unix())
 }
 
-// Parse reads and decodes a FIT activity file.
+// Parse reads a FIT activity file and returns its summary.
 func Parse(r io.Reader) (Summary, error) {
+	raw, err := ReadAll(r)
+	if err != nil {
+		return Summary{}, err
+	}
+	act, err := Decode(raw)
+	if err != nil {
+		return Summary{}, err
+	}
+	return act.Summary, nil
+}
+
+// ReadAll reads a FIT file into memory, enforcing MaxFileSize.
+func ReadAll(r io.Reader) ([]byte, error) {
 	raw, err := io.ReadAll(io.LimitReader(r, MaxFileSize+1))
 	if err != nil {
-		return Summary{}, fmt.Errorf("read: %w", err)
+		return nil, fmt.Errorf("read: %w", err)
 	}
 	if len(raw) > MaxFileSize {
-		return Summary{}, fmt.Errorf("file exceeds %d bytes", MaxFileSize)
+		return nil, fmt.Errorf("file exceeds %d bytes", MaxFileSize)
 	}
-	sum := sha256.Sum256(raw)
+	return raw, nil
+}
 
+// Decode decodes a complete FIT activity file.
+func Decode(raw []byte) (*Activity, error) {
+	sum := sha256.Sum256(raw)
 	fit, err := decoder.New(bytes.NewReader(raw)).Decode()
 	if err != nil {
-		return Summary{}, fmt.Errorf("decode: %w", err)
+		return nil, fmt.Errorf("decode: %w", err)
 	}
 	act := filedef.NewActivity(fit.Messages...)
 	if act.FileId.Type != typedef.FileActivity {
-		return Summary{}, fmt.Errorf("not an activity file (type %s)", act.FileId.Type)
+		return nil, fmt.Errorf("not an activity file (type %s)", act.FileId.Type)
 	}
 
 	s := Summary{
-		SHA256:       hex.EncodeToString(sum[:]),
-		FileType:     act.FileId.Type.String(),
-		Manufacturer: act.FileId.Manufacturer.String(),
-		Product:      act.FileId.Product,
-		ProductName:  act.FileId.ProductName,
-		Serial:       act.FileId.SerialNumber,
-		TimeCreated:  act.FileId.TimeCreated.UTC(),
-		Sessions:     len(act.Sessions),
-		Records:      len(act.Records),
-		DevFields:    len(act.FieldDescriptions),
+		SHA256:         hex.EncodeToString(sum[:]),
+		FileType:       act.FileId.Type.String(),
+		Manufacturer:   act.FileId.Manufacturer.String(),
+		ManufacturerID: uint16(act.FileId.Manufacturer),
+		Product:        act.FileId.Product,
+		ProductName:    act.FileId.ProductName,
+		Serial:         act.FileId.SerialNumber,
+		TimeCreated:    act.FileId.TimeCreated.UTC(),
+		Sessions:       len(act.Sessions),
+		Records:        len(act.Records),
+		DevFields:      len(act.FieldDescriptions),
 	}
 	if key := IdentityKey(&act.FileId); key != "" {
 		s.Key, s.KeySource = key, "file_id"
@@ -109,8 +153,24 @@ func Parse(r io.Reader) (Summary, error) {
 	}
 
 	summarizeSessions(&s, act.Sessions)
-	summarizeRecords(&s, act.Records)
-	return s, nil
+	stream := buildStream(&s, act.Records)
+	s.TZOffsetS = tzOffset(act.Activity)
+	return &Activity{Summary: s, Stream: stream}, nil
+}
+
+// tzOffset derives the UTC offset from the activity message. Offsets outside
+// ±14 h indicate a broken local timestamp and are ignored.
+func tzOffset(a *mesgdef.Activity) int {
+	if a == nil || a.Timestamp.IsZero() || a.LocalTimestamp.IsZero() {
+		return 0
+	}
+	// LocalTimestamp is "local wall clock encoded as UTC"; the difference is
+	// the offset. Round to 15 minutes to absorb the seconds between both fields.
+	off := a.LocalTimestamp.Sub(a.Timestamp).Round(15 * time.Minute)
+	if off < -14*time.Hour || off > 14*time.Hour {
+		return 0
+	}
+	return int(off.Seconds())
 }
 
 // summarizeSessions aggregates all sessions; multisport files contain several.
@@ -129,46 +189,42 @@ func summarizeSessions(s *Summary, sessions []*mesgdef.Session) {
 		if ses.TotalAscent != basetype.Uint16Invalid {
 			s.AscentM += int(ses.TotalAscent)
 		}
-	}
-}
-
-// summarizeRecords collects sensor coverage and fills totals that are missing
-// because the session message was never written (e.g. battery died).
-func summarizeRecords(s *Summary, records []*mesgdef.Record) {
-	var first, last time.Time
-	var maxDist float64
-	for _, rec := range records {
-		if rec.PositionLat != basetype.Sint32Invalid && rec.PositionLong != basetype.Sint32Invalid {
-			s.GPSPoints++
-		}
-		s.HasHR = s.HasHR || rec.HeartRate != basetype.Uint8Invalid
-		s.HasPower = s.HasPower || rec.Power != basetype.Uint16Invalid
-		s.HasCadence = s.HasCadence || rec.Cadence != basetype.Uint8Invalid
-		s.HasAltitude = s.HasAltitude || rec.EnhancedAltitude != basetype.Uint32Invalid || rec.Altitude != basetype.Uint16Invalid
-		if !rec.Timestamp.IsZero() {
-			if first.IsZero() {
-				first = rec.Timestamp
-			}
-			last = rec.Timestamp
-		}
-		if d := valid(rec.DistanceScaled()); d > maxDist {
-			maxDist = d
+		if ses.TotalDescent != basetype.Uint16Invalid {
+			s.DescentM += int(ses.TotalDescent)
 		}
 	}
-	if s.StartTime.IsZero() && !first.IsZero() {
-		s.StartTime = first.UTC()
+	// Averages only from a single session; for multisport files they are
+	// derived from the records, which mixes sports consistently.
+	if len(sessions) != 1 {
+		return
 	}
-	if s.ElapsedS == 0 && !first.IsZero() {
-		s.ElapsedS = last.Sub(first).Seconds()
-	}
-	if s.DistanceM == 0 {
-		s.DistanceM = maxDist
-	}
+	ses := sessions[0]
+	s.AvgSpeed = valid(ses.EnhancedAvgSpeedScaled())
+	s.MaxSpeed = valid(ses.EnhancedMaxSpeedScaled())
+	s.AvgHR = validU8(ses.AvgHeartRate)
+	s.MaxHR = validU8(ses.MaxHeartRate)
+	s.AvgPower = validU16(ses.AvgPower)
+	s.MaxPower = validU16(ses.MaxPower)
+	s.AvgCadence = validU8(ses.AvgCadence)
 }
 
 func valid(v float64) float64 {
-	if math.IsNaN(v) {
+	if math.IsNaN(v) || math.IsInf(v, 0) {
 		return 0
 	}
 	return v
+}
+
+func validU8(v uint8) int {
+	if v == basetype.Uint8Invalid {
+		return 0
+	}
+	return int(v)
+}
+
+func validU16(v uint16) int {
+	if v == basetype.Uint16Invalid {
+		return 0
+	}
+	return int(v)
 }
