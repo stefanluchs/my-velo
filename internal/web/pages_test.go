@@ -192,3 +192,59 @@ func TestMapConfig(t *testing.T) {
 }
 
 func itoa(id int64) string { return strconv.FormatInt(id, 10) }
+
+func TestHeatmapPageAndTracks(t *testing.T) {
+	env := newTestEnv(t)
+	ids := env.importFixtures(t, 2)
+	o := fittest.Default()
+	o.WithGPS = false
+	o.Serial = 1
+	(&importer.Importer{Store: env.store}).ImportReader(context.Background(), bytes.NewReader(fittest.Encode(t, o)), "indoor")
+
+	body := env.do(ingressGET("/heatmap")).Body.String()
+	for _, want := range []string{`id="heatmap-filter"`, `value="bike" checked`, `<option value="2026">2026</option>`, `"id":"bike","color":"#e8590c"`, `from "./static/heatmap.js?v=`} {
+		if !strings.Contains(body, want) {
+			t.Errorf("heatmap page missing %q", want)
+		}
+	}
+	withoutBase := strings.Replace(body, `<base href="/api/hassio_ingress/tok3n/">`, "", 1)
+	if m := absoluteURL.FindString(withoutBase); m != "" {
+		t.Errorf("absolute URL %q", m)
+	}
+
+	w := env.do(ingressGET("/api/tracks"))
+	if ct := w.Header().Get("Content-Type"); ct != "application/geo+json" {
+		t.Errorf("content type %q", ct)
+	}
+	var fc struct {
+		Type     string `json:"type"`
+		Features []struct {
+			ID       int64 `json:"id"`
+			Geometry struct {
+				Type        string       `json:"type"`
+				Coordinates [][2]float64 `json:"coordinates"`
+			} `json:"geometry"`
+			Properties struct {
+				ID    int64   `json:"id"`
+				Cat   string  `json:"cat"`
+				Label string  `json:"label"`
+				T     int64   `json:"t"`
+				Km    float64 `json:"km"`
+			} `json:"properties"`
+		} `json:"features"`
+	}
+	if err := json.NewDecoder(w.Body).Decode(&fc); err != nil {
+		t.Fatal(err)
+	}
+	if fc.Type != "FeatureCollection" || len(fc.Features) != 2 {
+		t.Fatalf("want 2 features (indoor has no track), got %d", len(fc.Features))
+	}
+	f := fc.Features[0]
+	wantT := fittest.Created.Add(time.Minute).Unix() + 7200
+	if f.ID != ids[0] || f.Properties.Cat != "bike" || f.Properties.Label != "Rennrad" || f.Properties.T != wantT || f.Properties.Km != 0.5 {
+		t.Errorf("feature %+v", f.Properties)
+	}
+	if c := f.Geometry.Coordinates[0]; f.Geometry.Type != "LineString" || c[0] != 12.8 || c[1] != 48.2 {
+		t.Errorf("geometry %v %v", f.Geometry.Type, c)
+	}
+}

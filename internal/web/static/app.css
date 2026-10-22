@@ -317,3 +317,82 @@ input[type="text"] {
 .charts .u-axis {
   color: inherit;
 }
+
+/* Full-width pages such as the heatmap. */
+main.full {
+  max-width: none;
+  margin: 0;
+  padding: 0;
+}
+
+main.full + footer {
+  display: none;
+}
+
+.heatmap-layout {
+  display: grid;
+  grid-template-columns: minmax(15rem, 18rem) 1fr;
+  height: calc(100vh - 3.2rem);
+}
+
+.heatmap-panel {
+  display: block;
+  padding: 1rem 1.25rem;
+  overflow-y: auto;
+  border-right: 1px solid var(--line);
+}
+
+.heatmap-panel h1 {
+  font-size: 1.4rem;
+}
+
+.heatmap-panel fieldset {
+  border: none;
+  padding: 0;
+  margin: 0 0 1rem;
+}
+
+.heatmap-panel legend {
+  font-weight: 600;
+  margin-bottom: 0.3rem;
+}
+
+.heatmap-panel label {
+  display: block;
+  padding: 0.15rem 0;
+}
+
+.heatmap-panel .custom-range {
+  margin-top: 0.4rem;
+}
+
+.heatmap-map {
+  height: 100%;
+  border: none;
+  border-radius: 0;
+  margin: 0;
+}
+
+.popup-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: #222;
+}
+
+.popup-list li {
+  padding: 0.15rem 0;
+}
+
+@media (max-width: 700px) {
+  .heatmap-layout {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 70vh;
+    height: auto;
+  }
+
+  .heatmap-panel {
+    border-right: none;
+    border-bottom: 1px solid var(--line);
+  }
+}

@@ -73,7 +73,19 @@ var funcs = template.FuncMap{
 	"orDash":     orDash,
 	"kmInt":      kmInt,
 	"hours":      hours,
-	"add":        func(a, b int) int { return a + b },
+	"categoriesJSON": func(cs []sport.Category) template.JS {
+		type cat struct {
+			ID    string `json:"id"`
+			Color string `json:"color"`
+		}
+		out := make([]cat, len(cs))
+		for i, c := range cs {
+			out[i] = cat{c.ID, c.Color}
+		}
+		b, _ := json.Marshal(out)
+		return template.JS(b)
+	},
+	"add": func(a, b int) int { return a + b },
 }
 
 // NewHandler returns the HTTP handler with all panel routes.
@@ -86,7 +98,7 @@ func NewHandler(d Deps) http.Handler {
 	if s.assetVersion == "" || s.assetVersion == "dev" {
 		s.assetVersion = strconv.FormatInt(d.Info.StartedAt.Unix(), 36)
 	}
-	for _, page := range []string{"index.html", "import.html", "activities.html", "activity.html"} {
+	for _, page := range []string{"index.html", "import.html", "activities.html", "activity.html", "heatmap.html"} {
 		s.pages[page] = template.Must(template.New(page).Funcs(funcs).ParseFS(templateFS,
 			"templates/layout.html", "templates/import_status.html", "templates/activity_table.html", "templates/"+page))
 	}
@@ -106,6 +118,8 @@ func NewHandler(d Deps) http.Handler {
 	mux.HandleFunc("GET /activities/{id}", s.activity)
 	mux.Handle("POST /activities/{id}/name", requireHTMX(http.HandlerFunc(s.rename)))
 	mux.HandleFunc("GET /api/activities/{id}/stream", s.stream)
+	mux.HandleFunc("GET /heatmap", s.heatmap)
+	mux.HandleFunc("GET /api/tracks", s.tracks)
 	mux.HandleFunc("GET /import", s.importPage)
 	mux.HandleFunc("GET /import/status", s.importStatus)
 	mux.Handle("POST /import/upload", requireHTMX(http.HandlerFunc(s.importUpload)))
