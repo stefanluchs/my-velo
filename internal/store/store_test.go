@@ -6,7 +6,9 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -183,7 +185,7 @@ func TestListOrderAndFilter(t *testing.T) {
 	if err != nil || len(all) != 3 || !all[0].StartTime.After(all[1].StartTime) {
 		t.Fatalf("list: %d %v", len(all), err)
 	}
-	cycling, _ := s.List(ctx, ListFilter{Sport: "cycling", Limit: 1})
+	cycling, _ := s.List(ctx, ListFilter{Sports: []string{"cycling"}, Limit: 1})
 	if len(cycling) != 1 || cycling[0].Sport != "cycling" {
 		t.Errorf("filtered: %+v", cycling)
 	}
@@ -202,5 +204,124 @@ func TestDeleteCascades(t *testing.T) {
 		if n != 0 {
 			t.Errorf("%s: %d rows left, foreign keys not enforced", table, n)
 		}
+	}
+}
+
+// seed stores activities at the given local times (UTC+2) with sports.
+func seed(t *testing.T, s *Store, items ...struct {
+	sport string
+	local string
+}) []int64 {
+	t.Helper()
+	var ids []int64
+	for i, it := range items {
+		local, err := time.Parse("2006-01-02 15:04", it.local)
+		if err != nil {
+			t.Fatal(err)
+		}
+		rec := recording(fmt.Sprintf("fit:1:1:%d", i), "x", 1)
+		rec.Activity.Sport = it.sport
+		rec.Activity.TZOffsetS = 7200
+		rec.Activity.StartTime = local.Add(-2 * time.Hour)
+		rec.Activity.DistanceM = float64(1000 * (i + 1))
+		id, _, err := s.SaveRecording(context.Background(), rec)
+		if err != nil {
+			t.Fatal(err)
+		}
+		ids = append(ids, id)
+	}
+	return ids
+}
+
+type item = struct {
+	sport string
+	local string
+}
+
+func TestFilterBySportsAndLocalDate(t *testing.T) {
+	ctx := context.Background()
+	s := newStore(t)
+	seed(t, s,
+		item{"cycling", "2025-12-31 23:30"}, // local 2025, UTC 21:30 → still 2025
+		item{"cycling", "2026-01-01 00:30"}, // local 2026, UTC 2025-12-31 22:30
+		item{"running", "2026-06-01 08:00"},
+		item{"swimming", "2026-07-01 08:00"},
+	)
+	y2026 := ListFilter{From: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC), To: time.Date(2027, 1, 1, 0, 0, 0, 0, time.UTC)}
+
+	tests := []struct {
+		name string
+		f    ListFilter
+		want int
+	}{
+		{"all", ListFilter{}, 4},
+		{"local year 2026", y2026, 3},
+		{"cycling in 2026", ListFilter{Sports: []string{"cycling"}, From: y2026.From, To: y2026.To}, 1},
+		{"other = not cycling/running", ListFilter{ExcludeSports: []string{"cycling", "running"}}, 1},
+	}
+	for _, tt := range tests {
+		got, err := s.List(ctx, tt.f)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(got) != tt.want {
+			t.Errorf("%s: %d activities, want %d", tt.name, len(got), tt.want)
+		}
+		tot, err := s.Totals(ctx, tt.f)
+		if err != nil || tot.Count != tt.want {
+			t.Errorf("%s: totals %+v %v", tt.name, tot, err)
+		}
+	}
+
+	tot, _ := s.Totals(ctx, y2026)
+	if tot.DistanceM != 2000+3000+4000 || tot.AscentM != 3*366 {
+		t.Errorf("totals 2026 %+v", tot)
+	}
+	years, err := s.Years(ctx)
+	if err != nil || len(years) != 2 || years[0] != 2026 || years[1] != 2025 {
+		t.Errorf("years %v %v", years, err)
+	}
+}
+
+func TestRename(t *testing.T) {
+	ctx := context.Background()
+	s := newStore(t)
+	ids := seed(t, s, item{"cycling", "2026-05-01 10:00"})
+	if err := s.Rename(ctx, ids[0], "  Feierabendrunde  "); err != nil {
+		t.Fatal(err)
+	}
+	if a, _ := s.Get(ctx, ids[0]); a.Name != "Feierabendrunde" {
+		t.Errorf("name %q", a.Name)
+	}
+	if err := s.Rename(ctx, ids[0], ""); err != nil {
+		t.Fatal(err)
+	}
+	if a, _ := s.Get(ctx, ids[0]); a.Name != "" {
+		t.Errorf("name not cleared: %q", a.Name)
+	}
+	if err := s.Rename(ctx, ids[0], strings.Repeat("x", MaxNameLength+1)); err == nil {
+		t.Error("expected length error")
+	}
+	if err := s.Rename(ctx, 999, "x"); !errors.Is(err, ErrNotFound) {
+		t.Errorf("unknown id: %v", err)
+	}
+}
+
+func TestTracksOnlyWithGeometry(t *testing.T) {
+	ctx := context.Background()
+	s := newStore(t)
+	seed(t, s, item{"cycling", "2026-05-01 10:00"}, item{"running", "2026-05-02 10:00"})
+	indoor := recording("fit:1:1:indoor", "y", 1)
+	indoor.Track = nil
+	if _, _, err := s.SaveRecording(ctx, indoor); err != nil {
+		t.Fatal(err)
+	}
+	all, err := s.Tracks(ctx, ListFilter{})
+	if err != nil || len(all) != 2 || all[0].Sport != "cycling" || all[0].Polyline == "" {
+		t.Fatalf("tracks %+v %v", all, err)
+	}
+	runs, _ := s.Tracks(ctx, ListFilter{Sports: []string{"running"}})
+	if len(runs) != 1 || runs[0].TZOffsetS != 7200 {
+		t.Errorf("filtered tracks %+v", runs)
 	}
 }

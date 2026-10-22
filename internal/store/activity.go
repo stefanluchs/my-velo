@@ -203,25 +203,60 @@ func updateActivity(ctx context.Context, tx *sql.Tx, id int64, a Activity, now i
 	return err
 }
 
-// ListFilter restricts List results.
+// ListFilter restricts List results. Zero values do not filter.
 type ListFilter struct {
-	Sport  string
-	Limit  int
-	Offset int
+	// Sports keeps activities whose sport is listed.
+	Sports []string
+	// ExcludeSports drops activities whose sport is listed (used for the
+	// "other" category).
+	ExcludeSports []string
+	// From and To bound the start on the local wall clock of the activity:
+	// From inclusive, To exclusive. Pass dates in UTC, e.g. 2026-01-01T00:00Z
+	// for "1 January local time".
+	From, To time.Time
+	Limit    int
+	Offset   int
 }
 
-// List returns activities, newest first.
+func (f ListFilter) where() (string, []any) {
+	var conds []string
+	var args []any
+	if len(f.Sports) > 0 {
+		conds = append(conds, `sport IN (`+placeholders(len(f.Sports))+`)`)
+		for _, s := range f.Sports {
+			args = append(args, s)
+		}
+	}
+	if len(f.ExcludeSports) > 0 {
+		conds = append(conds, `sport NOT IN (`+placeholders(len(f.ExcludeSports))+`)`)
+		for _, s := range f.ExcludeSports {
+			args = append(args, s)
+		}
+	}
+	if !f.From.IsZero() {
+		conds = append(conds, `start_time + tz_offset_s >= ?`)
+		args = append(args, f.From.Unix())
+	}
+	if !f.To.IsZero() {
+		conds = append(conds, `start_time + tz_offset_s < ?`)
+		args = append(args, f.To.Unix())
+	}
+	if len(conds) == 0 {
+		return "", nil
+	}
+	return " WHERE " + strings.Join(conds, " AND "), args
+}
+
+func placeholders(n int) string { return strings.TrimSuffix(strings.Repeat("?,", n), ",") }
+
+// List returns activities matching f, newest first.
 func (s *Store) List(ctx context.Context, f ListFilter) ([]Activity, error) {
 	if f.Limit <= 0 || f.Limit > 1000 {
 		f.Limit = 100
 	}
-	q := `SELECT id, name, ` + metricColumns + `, created_at, updated_at FROM activity`
-	var args []any
-	if f.Sport != "" {
-		q += ` WHERE sport = ?`
-		args = append(args, f.Sport)
-	}
-	q += ` ORDER BY start_time DESC LIMIT ? OFFSET ?`
+	where, args := f.where()
+	q := `SELECT id, name, ` + metricColumns + `, created_at, updated_at FROM activity` + where +
+		` ORDER BY start_time DESC LIMIT ? OFFSET ?`
 	args = append(args, f.Limit, f.Offset)
 
 	rows, err := s.db.QueryContext(ctx, q, args...)
@@ -236,6 +271,97 @@ func (s *Store) List(ctx context.Context, f ListFilter) ([]Activity, error) {
 			return nil, err
 		}
 		out = append(out, a)
+	}
+	return out, rows.Err()
+}
+
+// Totals are sums over a set of activities.
+type Totals struct {
+	Count     int
+	DistanceM float64
+	TimerS    float64
+	AscentM   int
+}
+
+// Totals sums the activities matching f (Limit and Offset are ignored).
+func (s *Store) Totals(ctx context.Context, f ListFilter) (Totals, error) {
+	where, args := f.where()
+	var t Totals
+	err := s.db.QueryRowContext(ctx, `SELECT COUNT(*), COALESCE(SUM(distance_m), 0), COALESCE(SUM(timer_s), 0),
+		COALESCE(SUM(ascent_m), 0) FROM activity`+where, args...).Scan(&t.Count, &t.DistanceM, &t.TimerS, &t.AscentM)
+	return t, err
+}
+
+// Years returns the local calendar years with activities, newest first.
+func (s *Store) Years(ctx context.Context) ([]int, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT DISTINCT CAST(strftime('%Y', start_time + tz_offset_s, 'unixepoch') AS INTEGER) AS y
+		FROM activity ORDER BY y DESC`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []int
+	for rows.Next() {
+		var y int
+		if err := rows.Scan(&y); err != nil {
+			return nil, err
+		}
+		out = append(out, y)
+	}
+	return out, rows.Err()
+}
+
+// MaxNameLength bounds user-provided activity names.
+const MaxNameLength = 120
+
+// Rename sets the user-visible name; an empty name restores the default label.
+func (s *Store) Rename(ctx context.Context, id int64, name string) error {
+	name = strings.TrimSpace(name)
+	if len([]rune(name)) > MaxNameLength {
+		return fmt.Errorf("name longer than %d characters", MaxNameLength)
+	}
+	res, err := s.db.ExecContext(ctx, `UPDATE activity SET name = ?, updated_at = ? WHERE id = ?`,
+		nullString(name), s.now().Unix(), id)
+	if err != nil {
+		return err
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
+// TrackInfo is a simplified track with the attributes needed by the heatmap.
+type TrackInfo struct {
+	ID        int64
+	Name      string
+	Sport     string
+	SubSport  string
+	StartTime time.Time
+	TZOffsetS int
+	DistanceM float64
+	Polyline  string
+}
+
+// Tracks returns the simplified tracks of all activities matching f
+// (Limit and Offset are ignored), oldest first.
+func (s *Store) Tracks(ctx context.Context, f ListFilter) ([]TrackInfo, error) {
+	where, args := f.where()
+	rows, err := s.db.QueryContext(ctx, `SELECT a.id, COALESCE(a.name, ''), a.sport, a.sub_sport, a.start_time, a.tz_offset_s,
+		a.distance_m, t.polyline FROM activity a JOIN activity_track t ON t.activity_id = a.id`+where+` ORDER BY a.start_time`, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []TrackInfo
+	for rows.Next() {
+		var ti TrackInfo
+		var start int64
+		if err := rows.Scan(&ti.ID, &ti.Name, &ti.Sport, &ti.SubSport, &start, &ti.TZOffsetS, &ti.DistanceM, &ti.Polyline); err != nil {
+			return nil, err
+		}
+		ti.StartTime = time.Unix(start, 0).UTC()
+		out = append(out, ti)
 	}
 	return out, rows.Err()
 }
