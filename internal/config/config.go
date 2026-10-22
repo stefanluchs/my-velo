@@ -2,6 +2,7 @@
 
 // Package config loads the add-on options that the Home Assistant Supervisor
 // writes to /data/options.json from the schema in my_velo/config.yaml.
+// The path is passed in by the caller (see cmd/myvelo, flag -options).
 package config
 
 import (
@@ -12,9 +13,6 @@ import (
 	"log/slog"
 	"os"
 )
-
-// DefaultOptionsPath is where the Supervisor provides the add-on options.
-const DefaultOptionsPath = "/data/options.json"
 
 // Options mirrors the "options"/"schema" section of my_velo/config.yaml.
 type Options struct {

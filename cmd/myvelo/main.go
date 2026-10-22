@@ -2,6 +2,12 @@
 
 // Command myvelo serves the my Velo panel. Inside the Home Assistant add-on it
 // listens on the ingress port and only accepts the Supervisor proxy.
+//
+// Data layout below -data (the add-on's /data, part of HA backups):
+//
+//	myvelo.db   SQLite database
+//	raw/        original FIT files by content hash
+//	tmp/        uploads until their import has finished
 package main
 
 import (
@@ -12,10 +18,13 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 	"time"
 
 	"github.com/stefanluchs/my-velo/internal/config"
+	"github.com/stefanluchs/my-velo/internal/importer"
+	"github.com/stefanluchs/my-velo/internal/store"
 	"github.com/stefanluchs/my-velo/internal/web"
 )
 
@@ -24,9 +33,14 @@ var version = "dev"
 
 func main() {
 	addr := flag.String("addr", ":8099", "listen address (must match ingress_port)")
-	optionsPath := flag.String("options", config.DefaultOptionsPath, "path to add-on options.json")
+	dataDir := flag.String("data", "/data", "data directory (database, raw files)")
+	importDir := flag.String("import-dir", "/share/myvelo/import", "drop folder for bulk imports")
+	optionsPath := flag.String("options", "", "path to add-on options.json (default <data>/options.json)")
 	dev := flag.Bool("dev", false, "development mode: accept requests from any address")
 	flag.Parse()
+	if *optionsPath == "" {
+		*optionsPath = filepath.Join(*dataDir, "options.json")
+	}
 
 	opts, err := config.Load(*optionsPath)
 	if err != nil {
@@ -34,36 +48,77 @@ func main() {
 		os.Exit(1)
 	}
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: opts.SlogLevel()}))
+	if err := run(logger, opts, *addr, *dataDir, *importDir, *dev); err != nil {
+		logger.Error("my Velo failed", "err", err)
+		os.Exit(1)
+	}
+}
 
-	handler := web.NewHandler(web.Info{
-		Version:     version,
-		StartedAt:   time.Now(),
-		MapProvider: opts.MapProvider,
-		MapKeySet:   opts.MapTilerKey != "",
-	}, logger)
-	if !*dev {
+func run(logger *slog.Logger, opts config.Options, addr, dataDir, importDir string, dev bool) error {
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+
+	tempDir := filepath.Join(dataDir, "tmp")
+	// Leftovers of an interrupted upload are never needed again.
+	if err := os.RemoveAll(tempDir); err != nil {
+		return err
+	}
+	for _, dir := range []string{dataDir, filepath.Join(dataDir, "raw"), tempDir} {
+		if err := os.MkdirAll(dir, 0o750); err != nil {
+			return err
+		}
+	}
+	if err := os.MkdirAll(importDir, 0o755); err != nil {
+		// Not fatal: uploads still work without the share mapping.
+		logger.Warn("import folder unavailable", "dir", importDir, "err", err)
+	}
+
+	st, err := store.Open(ctx, filepath.Join(dataDir, "myvelo.db"))
+	if err != nil {
+		return err
+	}
+	defer st.Close()
+
+	jobCtx, cancelJobs := context.WithCancel(context.Background())
+	defer cancelJobs()
+	jobs := web.NewJobs(jobCtx)
+
+	handler := web.NewHandler(web.Deps{
+		Info: web.Info{
+			Version:     version,
+			StartedAt:   time.Now(),
+			MapProvider: opts.MapProvider,
+			MapKeySet:   opts.MapTilerKey != "",
+		},
+		Store:     st,
+		Importer:  &importer.Importer{Store: st, RawDir: filepath.Join(dataDir, "raw"), Logger: logger},
+		Jobs:      jobs,
+		ImportDir: importDir,
+		TempDir:   tempDir,
+		Logger:    logger,
+	})
+	if !dev {
 		handler = web.AllowOnly([]string{web.SupervisorIngressIP}, handler)
 	}
 
-	srv := &http.Server{
-		Addr:              *addr,
-		Handler:           handler,
-		ReadHeaderTimeout: 10 * time.Second,
+	srv := &http.Server{Addr: addr, Handler: handler, ReadHeaderTimeout: 10 * time.Second}
+	errCh := make(chan error, 1)
+	go func() { errCh <- srv.ListenAndServe() }()
+	logger.Info("my Velo started", "version", version, "addr", addr, "data", dataDir, "import_dir", importDir, "dev", dev)
+
+	select {
+	case err := <-errCh:
+		if !errors.Is(err, http.ErrServerClosed) {
+			return err
+		}
+	case <-ctx.Done():
 	}
 
-	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
-	defer stop()
-	go func() {
-		<-ctx.Done()
-		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-		_ = srv.Shutdown(shutdownCtx)
-	}()
-
-	logger.Info("my Velo started", "version", version, "addr", *addr, "dev", *dev)
-	if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-		logger.Error("http server", "err", err)
-		os.Exit(1)
-	}
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	_ = srv.Shutdown(shutdownCtx)
+	cancelJobs()
+	web.WaitForJobs(shutdownCtx, jobs)
 	logger.Info("my Velo stopped")
+	return nil
 }

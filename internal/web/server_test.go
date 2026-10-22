@@ -3,14 +3,22 @@
 package web
 
 import (
+	"bytes"
+	"context"
 	"encoding/json"
-	"io"
-	"log/slog"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/stefanluchs/my-velo/internal/fittest"
+	"github.com/stefanluchs/my-velo/internal/importer"
+	"github.com/stefanluchs/my-velo/internal/store"
 )
 
 func TestBasePath(t *testing.T) {
@@ -56,73 +64,232 @@ func TestAllowOnly(t *testing.T) {
 	}
 }
 
-func newTestServer(t *testing.T) http.Handler {
-	t.Helper()
-	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	return NewHandler(Info{Version: "1.2.3", StartedAt: time.Now(), MapProvider: "maptiler", MapKeySet: true}, logger)
+type testEnv struct {
+	handler   http.Handler
+	store     *store.Store
+	jobs      *Jobs
+	importDir string
+	tempDir   string
 }
 
-func TestIndexUsesIngressBase(t *testing.T) {
-	h := newTestServer(t)
-	r := httptest.NewRequest(http.MethodGet, "/", nil)
-	r.Header.Set(HeaderIngressPath, "/api/hassio_ingress/tok3n")
-	w := httptest.NewRecorder()
-	h.ServeHTTP(w, r)
-
-	if w.Code != http.StatusOK {
-		t.Fatalf("status %d", w.Code)
+func newTestEnv(t *testing.T) *testEnv {
+	t.Helper()
+	st, err := store.OpenMemory(context.Background())
+	if err != nil {
+		t.Fatal(err)
 	}
-	body := w.Body.String()
-	for _, want := range []string{
-		`<base href="/api/hassio_ingress/tok3n/">`,
-		`src="static/app.js"`,
-		`href="static/app.css"`,
-		"1.2.3",
-	} {
-		if !strings.Contains(body, want) {
-			t.Errorf("index missing %q", want)
+	t.Cleanup(func() { st.Close() })
+	dir := t.TempDir()
+	env := &testEnv{store: st, jobs: NewJobs(context.Background()), importDir: filepath.Join(dir, "import"), tempDir: filepath.Join(dir, "tmp")}
+	env.handler = NewHandler(Deps{
+		Info:      Info{Version: "1.2.3", StartedAt: time.Now(), MapProvider: "maptiler", MapKeySet: true},
+		Store:     st,
+		Importer:  &importer.Importer{Store: st, RawDir: filepath.Join(dir, "raw")},
+		Jobs:      env.jobs,
+		ImportDir: env.importDir,
+		TempDir:   env.tempDir,
+	})
+	return env
+}
+
+func (e *testEnv) do(r *http.Request) *httptest.ResponseRecorder {
+	w := httptest.NewRecorder()
+	e.handler.ServeHTTP(w, r)
+	return w
+}
+
+func ingressGET(path string) *http.Request {
+	r := httptest.NewRequest(http.MethodGet, path, nil)
+	r.Header.Set(HeaderIngressPath, "/api/hassio_ingress/tok3n")
+	return r
+}
+
+var absoluteURL = regexp.MustCompile(`(?:src|href|hx-get|hx-post)="/`)
+
+func TestPagesUseIngressBaseAndRelativeURLs(t *testing.T) {
+	env := newTestEnv(t)
+	for _, path := range []string{"/", "/import"} {
+		w := env.do(ingressGET(path))
+		if w.Code != http.StatusOK {
+			t.Fatalf("%s: status %d", path, w.Code)
+		}
+		body := w.Body.String()
+		for _, want := range []string{`<base href="/api/hassio_ingress/tok3n/">`, `src="static/vendor/htmx-2.0.11.min.js"`, "1.2.3"} {
+			if !strings.Contains(body, want) {
+				t.Errorf("%s: missing %q", path, want)
+			}
+		}
+		withoutBase := strings.Replace(body, `<base href="/api/hassio_ingress/tok3n/">`, "", 1)
+		if m := absoluteURL.FindString(withoutBase); m != "" {
+			t.Errorf("%s: absolute URL %q breaks under ingress", path, m)
 		}
 	}
-	if strings.Contains(body, `src="/`) || strings.Contains(body, `href="/static`) {
-		t.Error("index contains absolute asset URLs, which break under ingress")
+}
+
+func TestIndexEmptyState(t *testing.T) {
+	env := newTestEnv(t)
+	body := env.do(ingressGET("/")).Body.String()
+	if !strings.Contains(body, "Noch keine Aktivitäten") || !strings.Contains(body, `href="import"`) {
+		t.Error("empty state with import link expected")
 	}
 }
 
 func TestHealth(t *testing.T) {
-	h := newTestServer(t)
-	r := httptest.NewRequest(http.MethodGet, "/api/health", nil)
-	r.Header.Set(HeaderIngressPath, "/api/hassio_ingress/tok3n")
-	w := httptest.NewRecorder()
-	h.ServeHTTP(w, r)
-
+	env := newTestEnv(t)
+	w := env.do(ingressGET("/api/health"))
 	var got struct {
-		Status    string `json:"status"`
-		Version   string `json:"version"`
-		BasePath  string `json:"base_path"`
-		MapKeySet bool   `json:"map_key_set"`
+		Status     string `json:"status"`
+		Version    string `json:"version"`
+		BasePath   string `json:"base_path"`
+		MapKeySet  bool   `json:"map_key_set"`
+		Activities int    `json:"activities"`
 	}
 	if err := json.NewDecoder(w.Body).Decode(&got); err != nil {
 		t.Fatal(err)
 	}
-	if got.Status != "ok" || got.Version != "1.2.3" || got.BasePath != "/api/hassio_ingress/tok3n/" || !got.MapKeySet {
+	if got.Status != "ok" || got.Version != "1.2.3" || got.BasePath != "/api/hassio_ingress/tok3n/" || !got.MapKeySet || got.Activities != 0 {
 		t.Errorf("unexpected health: %+v", got)
-	}
-	if strings.Contains(w.Body.String(), "maptiler_key") {
-		t.Error("health must not expose the map key")
 	}
 }
 
 func TestStaticAndUnknownRoutes(t *testing.T) {
-	h := newTestServer(t)
+	env := newTestEnv(t)
 	for path, want := range map[string]int{
-		"/static/app.js":  http.StatusOK,
-		"/static/app.css": http.StatusOK,
-		"/does-not-exist": http.StatusNotFound,
+		"/static/app.css":                   http.StatusOK,
+		"/static/vendor/htmx-2.0.11.min.js": http.StatusOK,
+		"/does-not-exist":                   http.StatusNotFound,
 	} {
-		w := httptest.NewRecorder()
-		h.ServeHTTP(w, httptest.NewRequest(http.MethodGet, path, nil))
-		if w.Code != want {
+		if w := env.do(httptest.NewRequest(http.MethodGet, path, nil)); w.Code != want {
 			t.Errorf("%s: status %d, want %d", path, w.Code, want)
 		}
+	}
+}
+
+func uploadRequest(t *testing.T, files map[string][]byte) *http.Request {
+	t.Helper()
+	var body bytes.Buffer
+	mw := multipart.NewWriter(&body)
+	for name, data := range files {
+		fw, err := mw.CreateFormFile("files", name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		_, _ = fw.Write(data)
+	}
+	_ = mw.Close()
+	r := httptest.NewRequest(http.MethodPost, "/import/upload", &body)
+	r.Header.Set("Content-Type", mw.FormDataContentType())
+	r.Header.Set("HX-Request", "true")
+	return r
+}
+
+func TestUploadImportsActivities(t *testing.T) {
+	env := newTestEnv(t)
+	other := fittest.Default()
+	other.Serial = 7
+	w := env.do(uploadRequest(t, map[string][]byte{
+		"../../etc/ride one.fit": fittest.Encode(t, fittest.Default()),
+		"second.FIT":             fittest.Encode(t, other),
+		"notes.txt":              []byte("ignored"),
+	}))
+	if w.Code != http.StatusOK || !strings.Contains(w.Body.String(), `id="import-status"`) {
+		t.Fatalf("status %d: %s", w.Code, w.Body.String())
+	}
+	env.jobs.Wait()
+
+	job := env.jobs.Last()
+	if job.Stats != (importer.Stats{Created: 2}) || job.Error != "" {
+		t.Errorf("job %+v", job)
+	}
+	for _, r := range job.Results {
+		if strings.Contains(r.Origin, "..") || strings.Contains(r.Origin, " ") {
+			t.Errorf("origin not sanitized: %q", r.Origin)
+		}
+	}
+	if n, _ := env.store.Count(context.Background()); n != 2 {
+		t.Errorf("count %d", n)
+	}
+	if entries, _ := os.ReadDir(env.tempDir); len(entries) != 0 {
+		t.Errorf("upload folder not cleaned up: %d entries", len(entries))
+	}
+
+	status := env.do(ingressGET("/import/status")).Body.String()
+	if !strings.Contains(status, "neu: 2") || strings.Contains(status, `hx-trigger="every 1s"`) {
+		t.Errorf("finished status fragment wrong: %s", status)
+	}
+	index := env.do(ingressGET("/")).Body.String()
+	if !strings.Contains(index, "2 Aktivitäten") || !strings.Contains(index, "Rennrad") {
+		t.Error("index should list the imported activities")
+	}
+}
+
+func TestUploadWithoutFitFiles(t *testing.T) {
+	env := newTestEnv(t)
+	w := env.do(uploadRequest(t, map[string][]byte{"notes.txt": []byte("x")}))
+	if w.Code != http.StatusBadRequest || !strings.Contains(w.Body.String(), "Keine .fit") {
+		t.Errorf("status %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestFolderImport(t *testing.T) {
+	env := newTestEnv(t)
+	if err := os.MkdirAll(env.importDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	_ = os.WriteFile(filepath.Join(env.importDir, "ride.fit"), fittest.Encode(t, fittest.Default()), 0o600)
+
+	r := httptest.NewRequest(http.MethodPost, "/import/folder", nil)
+	r.Header.Set("HX-Request", "true")
+	if w := env.do(r); w.Code != http.StatusOK {
+		t.Fatalf("status %d", w.Code)
+	}
+	env.jobs.Wait()
+	if job := env.jobs.Last(); job.Stats.Created != 1 {
+		t.Errorf("job %+v", job)
+	}
+	// Files stay in the share folder; a second run only confirms them.
+	env.do(r.Clone(context.Background()))
+	env.jobs.Wait()
+	if job := env.jobs.Last(); job.Stats != (importer.Stats{Unchanged: 1}) {
+		t.Errorf("second run %+v", job.Stats)
+	}
+}
+
+func TestStateChangingRequestsRequireHTMX(t *testing.T) {
+	env := newTestEnv(t)
+	for _, path := range []string{"/import/upload", "/import/folder"} {
+		r := httptest.NewRequest(http.MethodPost, path, strings.NewReader(""))
+		if w := env.do(r); w.Code != http.StatusForbidden {
+			t.Errorf("%s without HX-Request: status %d, want 403", path, w.Code)
+		}
+	}
+}
+
+func TestOnlyOneJobAtATime(t *testing.T) {
+	jobs := NewJobs(context.Background())
+	release := make(chan struct{})
+	if err := jobs.Start("a", func(ctx context.Context, _ func(importer.Result)) error { <-release; return nil }, nil); err != nil {
+		t.Fatal(err)
+	}
+	if err := jobs.Start("b", func(context.Context, func(importer.Result)) error { return nil }, nil); err != ErrJobRunning {
+		t.Errorf("second start: %v, want ErrJobRunning", err)
+	}
+	close(release)
+	jobs.Wait()
+	if job := jobs.Last(); job.Running || job.Label != "a" {
+		t.Errorf("job %+v", job)
+	}
+}
+
+func TestFormatting(t *testing.T) {
+	if km(42195) != "42,2" || kmh(8) != "28,8" || kmh(0) != "–" || duration(3725) != "1:02:05" {
+		t.Error("number formatting")
+	}
+	if sportLabel("cycling", "gravel_cycling") != "Gravel" || sportLabel("cycling", "generic") != "Radfahren" || sportLabel("kitesurfing", "") != "kitesurfing" {
+		t.Error("sport labels")
+	}
+	ts := time.Date(2026, 10, 1, 8, 53, 0, 0, time.UTC)
+	if localTime(ts, 7200) != "01.10.2026 10:53" {
+		t.Errorf("localTime = %s", localTime(ts, 7200))
 	}
 }

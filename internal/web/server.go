@@ -8,13 +8,18 @@
 package web
 
 import (
+	"context"
 	"embed"
 	"encoding/json"
+	"fmt"
 	"html/template"
 	"io/fs"
 	"log/slog"
 	"net/http"
 	"time"
+
+	"github.com/stefanluchs/my-velo/internal/importer"
+	"github.com/stefanluchs/my-velo/internal/store"
 )
 
 //go:embed templates/*.html
@@ -31,42 +36,153 @@ type Info struct {
 	MapKeySet   bool
 }
 
+// Deps are the collaborators of the HTTP handler.
+type Deps struct {
+	Info     Info
+	Store    *store.Store
+	Importer *importer.Importer
+	Jobs     *Jobs
+	// ImportDir is the drop folder for bulk imports (/share/myvelo/import).
+	ImportDir string
+	// TempDir holds uploads until their import job has finished.
+	TempDir string
+	Logger  *slog.Logger
+}
+
+type server struct {
+	Deps
+	pages map[string]*template.Template
+}
+
+var funcs = template.FuncMap{
+	"km":         km,
+	"kmh":        kmh,
+	"duration":   duration,
+	"localTime":  localTime,
+	"sportLabel": sportLabel,
+	"sportIcon":  sportIcon,
+	"orDash":     orDash,
+}
+
 // NewHandler returns the HTTP handler with all panel routes.
-func NewHandler(info Info, logger *slog.Logger) http.Handler {
-	tmpl := template.Must(template.ParseFS(templateFS, "templates/*.html"))
+func NewHandler(d Deps) http.Handler {
+	if d.Logger == nil {
+		d.Logger = slog.New(slog.DiscardHandler)
+	}
+	s := &server{Deps: d, pages: map[string]*template.Template{}}
+	for _, page := range []string{"index.html", "import.html"} {
+		s.pages[page] = template.Must(template.New(page).Funcs(funcs).ParseFS(templateFS,
+			"templates/layout.html", "templates/import_status.html", "templates/"+page))
+	}
+	s.pages[fragmentImportStatus] = template.Must(template.New(fragmentImportStatus).Funcs(funcs).
+		ParseFS(templateFS, "templates/import_status.html"))
+
 	static, err := fs.Sub(staticFS, "static")
 	if err != nil {
 		panic(err)
 	}
 
 	mux := http.NewServeMux()
-	mux.Handle("GET /static/", http.StripPrefix("/static/", http.FileServerFS(static)))
+	mux.Handle("GET /static/", cacheStatic(http.StripPrefix("/static/", http.FileServerFS(static))))
+	mux.HandleFunc("GET /api/health", s.health)
+	mux.HandleFunc("GET /{$}", s.index)
+	mux.HandleFunc("GET /import", s.importPage)
+	mux.HandleFunc("GET /import/status", s.importStatus)
+	mux.Handle("POST /import/upload", requireHTMX(http.HandlerFunc(s.importUpload)))
+	mux.Handle("POST /import/folder", requireHTMX(http.HandlerFunc(s.importFolder)))
 
-	mux.HandleFunc("GET /api/health", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(map[string]any{
-			"status":       "ok",
-			"version":      info.Version,
-			"uptime_s":     int(time.Since(info.StartedAt).Seconds()),
-			"base_path":    BasePath(r),
-			"map_provider": info.MapProvider,
-			"map_key_set":  info.MapKeySet,
-		})
+	return logRequests(d.Logger, mux)
+}
+
+// fragmentImportStatus is the template rendered for htmx status updates.
+const fragmentImportStatus = "importStatus"
+
+// pageData is shared by all full pages.
+type pageData struct {
+	Info
+	BasePath string
+	Ingress  bool
+	Nav      string
+	Data     any
+}
+
+func (s *server) render(w http.ResponseWriter, r *http.Request, page, nav string, data any) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	pd := pageData{Info: s.Info, BasePath: BasePath(r), Ingress: r.Header.Get(HeaderIngressPath) != "", Nav: nav, Data: data}
+	if err := s.pages[page].ExecuteTemplate(w, "layout", pd); err != nil {
+		s.Logger.Error("render", "page", page, "err", err)
+	}
+}
+
+func (s *server) renderFragment(w http.ResponseWriter, name string, data any) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	if err := s.pages[name].ExecuteTemplate(w, name, data); err != nil {
+		s.Logger.Error("render fragment", "name", name, "err", err)
+	}
+}
+
+func (s *server) health(w http.ResponseWriter, r *http.Request) {
+	count, err := s.Store.Count(r.Context())
+	status := "ok"
+	if err != nil {
+		status = "degraded"
+		s.Logger.Error("health: count activities", "err", err)
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]any{
+		"status":       status,
+		"version":      s.Info.Version,
+		"uptime_s":     int(time.Since(s.Info.StartedAt).Seconds()),
+		"base_path":    BasePath(r),
+		"map_provider": s.Info.MapProvider,
+		"map_key_set":  s.Info.MapKeySet,
+		"activities":   count,
 	})
+}
 
-	mux.HandleFunc("GET /{$}", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		data := struct {
-			Info
-			BasePath string
-			Ingress  bool
-		}{info, BasePath(r), r.Header.Get(HeaderIngressPath) != ""}
-		if err := tmpl.ExecuteTemplate(w, "index.html", data); err != nil {
-			logger.Error("render index", "err", err)
+type indexData struct {
+	Count  int
+	Recent []store.Activity
+}
+
+func (s *server) index(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	count, err := s.Store.Count(ctx)
+	if err != nil {
+		s.serverError(w, "count activities", err)
+		return
+	}
+	recent, err := s.Store.List(ctx, store.ListFilter{Limit: 20})
+	if err != nil {
+		s.serverError(w, "list activities", err)
+		return
+	}
+	s.render(w, r, "index.html", "index", indexData{Count: count, Recent: recent})
+}
+
+func (s *server) serverError(w http.ResponseWriter, what string, err error) {
+	s.Logger.Error(what, "err", err)
+	http.Error(w, fmt.Sprintf("Interner Fehler: %s", what), http.StatusInternalServerError)
+}
+
+// requireHTMX accepts state-changing requests only from htmx. Browsers do not
+// send custom headers cross-site without a CORS preflight, which this server
+// never grants, so this blocks cross-site request forgery.
+func requireHTMX(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("HX-Request") != "true" {
+			http.Error(w, "forbidden", http.StatusForbidden)
+			return
 		}
+		next.ServeHTTP(w, r)
 	})
+}
 
-	return logRequests(logger, mux)
+func cacheStatic(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Cache-Control", "public, max-age=3600")
+		next.ServeHTTP(w, r)
+	})
 }
 
 func logRequests(logger *slog.Logger, next http.Handler) http.Handler {
@@ -75,4 +191,15 @@ func logRequests(logger *slog.Logger, next http.Handler) http.Handler {
 		next.ServeHTTP(w, r)
 		logger.Debug("request", "method", r.Method, "path", r.URL.Path, "duration", time.Since(start))
 	})
+}
+
+// WaitForJobs blocks until running imports finished or ctx ends. Cancel the
+// context passed to NewJobs first so that imports stop early.
+func WaitForJobs(ctx context.Context, jobs *Jobs) {
+	done := make(chan struct{})
+	go func() { jobs.Wait(); close(done) }()
+	select {
+	case <-done:
+	case <-ctx.Done():
+	}
 }
