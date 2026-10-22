@@ -3,7 +3,7 @@
 # Add-on manifest, see https://developers.home-assistant.io/docs/add-ons/configuration
 # The version must match the Git tag (vX.Y.Z) that built the image; CI checks this.
 name: my Velo
-version: "0.0.1"
+version: "0.1.0"
 slug: my_velo
 description: Rad- und Sportaktivitäten mit Karte, Statistik und Heatmap – lokal aus Garmin-FIT-Dateien
 url: https://github.com/stefanluchs/my-velo
@@ -24,6 +24,12 @@ panel_title: my Velo
 map:
   - type: share
     read_only: false
+
+# SQLite in WAL mode is only guaranteed consistent when no writer is active,
+# so the add-on is stopped for the few seconds of a backup.
+backup: cold
+backup_exclude:
+  - tmp
 
 options:
   log_level: info

@@ -55,3 +55,29 @@ Home Assistant leitet das Panel über einen Pfad wie `/api/hassio_ingress/<token
 weiter und übergibt diesen im Header `X-Ingress-Path`. Der Server erzeugt deshalb ausschließlich
 relative URLs und setzt `<base href>` auf diesen Pfad. Anfragen nimmt er im Add-on-Betrieb nur vom
 Supervisor-Proxy `172.30.32.2` an. Details: [spikes/s3-ingress-addon.md](spikes/s3-ingress-addon.md).
+
+## Datenmodell und Import (ab 0.1.0)
+
+Schema: [internal/store/migrations](../internal/store/migrations/). Ablauf je Datei:
+
+```mermaid
+flowchart LR
+    F[FIT-Datei] --> D[fitfile.Decode<br/>Summary + Streams]
+    D --> A[(raw/&lt;sha&gt;.fit)]
+    D --> S[Stream: JSON, gzip]
+    D --> T[Track: Douglas-Peucker,<br/>Polyline]
+    S & T --> U{Upsert über<br/>source + source_key}
+    U -->|neu| C[created]
+    U -->|gleicher Hash, gleiche<br/>analysis_version| N[unchanged]
+    U -->|sonst| UP[updated – Name bleibt]
+```
+
+| Tabelle | Inhalt |
+|---|---|
+| `activity` | Kennzahlen, Gerät, Bounding Box, `tz_offset_s`, `analysis_version`; `name` ist vom Nutzer editierbar und wird beim Re-Import nicht überschrieben |
+| `activity_source` | natürliche Schlüssel je Quelle, `UNIQUE(source, source_key)` – Grundlage der Idempotenz |
+| `activity_stream` | volle Auflösung, spaltenweise, gzip-JSON (`json+gzip;v1`) |
+| `activity_track` | vereinfachte Geometrie als Google-Polyline (1e-5) für Übersichten und Heatmap |
+
+Die Originaldateien unter `raw/` sind die Quelle der Wahrheit: Ändert sich die Auswertung, wird
+`importer.AnalysisVersion` erhöht und neu abgeleitet, ohne die Dateien erneut zu beschaffen.

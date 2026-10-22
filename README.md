@@ -6,8 +6,8 @@ my Velo zeigt einzelne Aktivitäten mit Karte, die Historie mit Statistiken und 
 Heatmap, ohne Abo und ohne zusätzliche Cloud-Plattform. Die Daten stammen aus den Original-FIT-Dateien
 der Garmin-Geräte und bleiben lokal auf der Home-Assistant-Instanz.
 
-> **Status: Phase 0 (Spikes) technisch abgeschlossen.** Das Repository enthält technische
-> Durchstiche, noch keine nutzbare Anwendung.
+> **Status: Phase 1 (MVP) in Arbeit – Version 0.1.0.** Aktivitäten lassen sich importieren
+> (Upload, Import-Ordner, Garmin-Gesamtexport) und werden in einer Übersicht gelistet.
 >
 > - **Weitermachen:** [docs/next-steps.md](docs/next-steps.md) – Arbeitsstand, offene Prüfungen, Phase-1-Zuschnitt
 > - **Plan und Entscheidungen:** [docs/plan.md](docs/plan.md)
@@ -40,7 +40,7 @@ Details stehen in [docs/architecture.md](docs/architecture.md).
 |---|---|
 | [`cmd/myvelo`](cmd/myvelo) | Einstiegspunkt des Go-Servers (Ingress-Panel) |
 | [`cmd/fitinspect`](cmd/fitinspect) | Werkzeug zum Prüfen von FIT-Dateien und Garmin-Exporten |
-| [`internal/`](internal) | Go-Pakete (Server, FIT-Verarbeitung) |
+| [`internal/`](internal) | Go-Pakete: `web` (Panel), `store` (SQLite), `importer`, `fitfile`, `geo`, `config` |
 | [`garmin-fetch/`](garmin-fetch) | Python-Fetcher für Garmin Connect |
 | [`my_velo/`](my_velo) | Home-Assistant-Add-on-Definition |
 | [`docs/`](docs) | Plan, Architektur, nächste Schritte, Spike-Ergebnisse, Release-Prozess |
@@ -51,7 +51,7 @@ Voraussetzungen: Go ≥ 1.26, Python ≥ 3.12, Docker (für das Add-on-Image).
 
 ```bash
 go test ./...                       # Go-Tests
-go run ./cmd/myvelo -dev            # Panel lokal auf http://localhost:8099
+go run ./cmd/myvelo -dev -data ./data -import-dir ./data/import   # Panel auf http://localhost:8099
 go run ./cmd/fitinspect <datei|ordner|zip>   # FIT-Dateien analysieren
 ```
 

@@ -10,13 +10,17 @@ Den Gesamtplan mit Anforderungen, Entscheidungen und Begründungen enthält [pla
 |---|---|
 | Evaluierung und Entscheidungen E1–E6 | ✅ abgeschlossen ([plan.md §9](plan.md#9-entscheidungen)) |
 | Phase 0 – Spikes | ✅ technisch erledigt, 🟡 Prüfungen mit echten Daten offen ([spikes/](spikes/README.md)) |
-| Phase 1 – MVP | ⏳ nicht begonnen, Zuschnitt siehe unten |
+| Phase 1 – MVP | 🟡 in Arbeit: 1.1–1.3 ✅ (Release `v0.1.0`), nächstes Inkrement **1.4** |
 
 Vorhanden im Repository:
 
-- Go-Server mit Ingress-Statusseite ([cmd/myvelo](../cmd/myvelo), [internal/web](../internal/web))
-- FIT-Parser mit Identitätsschlüssel und Export-Scanner ([internal/fitfile](../internal/fitfile)),
-  Werkzeug [cmd/fitinspect](../cmd/fitinspect)
+- Go-Server mit Panel hinter Ingress: Übersicht der neuesten Aktivitäten, Import per Upload und
+  Import-Ordner ([cmd/myvelo](../cmd/myvelo), [internal/web](../internal/web))
+- SQLite-Speicher mit Migrationen ([internal/store](../internal/store)) und Import-Pipeline mit
+  Rohdatei-Archiv, Streams und vereinfachten Tracks ([internal/importer](../internal/importer),
+  [internal/geo](../internal/geo))
+- FIT-Parser mit Identitätsschlüssel, Streams und Export-Scanner ([internal/fitfile](../internal/fitfile)),
+  Werkzeug [cmd/fitinspect](../cmd/fitinspect), Test-Fixtures [internal/fittest](../internal/fittest)
 - Garmin-Fetcher ([garmin-fetch](../garmin-fetch)) mit JSON-Lines-Protokoll
 - Add-on-Definition ([my_velo](../my_velo)), Dockerfile (amd64/aarch64 ohne QEMU), CI und Release-Workflow
 
@@ -44,15 +48,33 @@ für sich lauffähig, getestet und releasebar ist.
 
 | # | Inkrement | Inhalt | Abhängig von |
 |---|---|---|---|
-| 1.1 | Speicher | SQLite (`modernc.org/sqlite`) unter `/data/myvelo.db`, Migrationen, Tabellen `activity`, `activity_source` (`UNIQUE(source, source_key)`), `track` (vereinfachte Geometrie), Rohdatei-Archiv `/data/raw/<sha256>.fit` | – |
-| 1.2 | Import-Pipeline | FIT → Upsert über den Schlüssel aus [s2](spikes/s2-fit-parsing.md); Streams speichern, Geometrie vereinfachen (`paulmach/orb`); `analysis_version` für Neuberechnung | 1.1 |
-| 1.3 | Datei-Import | Upload im Panel + Ordner `/share/myvelo/import/` (Bulk-Export über `fitfile.Walk`); Fortschritt und Fehlerliste | 1.2 |
+| 1.1 ✅ | Speicher | SQLite (`modernc.org/sqlite`) unter `/data/myvelo.db`, Migrationen, Tabellen `activity`, `activity_source` (`UNIQUE(source, source_key)`), `track` (vereinfachte Geometrie), Rohdatei-Archiv `/data/raw/<sha256>.fit` | – |
+| 1.2 ✅ | Import-Pipeline | FIT → Upsert über den Schlüssel aus [s2](spikes/s2-fit-parsing.md); Streams speichern, Geometrie vereinfachen (`paulmach/orb`); `analysis_version` für Neuberechnung | 1.1 |
+| 1.3 ✅ | Datei-Import | Upload im Panel + Ordner `/share/myvelo/import/` (Bulk-Export über `fitfile.Walk`); Fortschritt und Fehlerliste | 1.2 |
 | 1.4 | Aktivitätenliste | Liste mit Filter (Typ, Zeitraum), Kennzahlen | 1.2 |
 | 1.5 | Aktivitätsdetail | MapLibre-Karte, Höhenprofil, uPlot-Charts (Tempo, HF, Leistung, Trittfrequenz) | 1.4 |
 | 1.6 | Statistik | Summen pro Woche/Monat/Jahr (Distanz, Höhenmeter, Zeit) | 1.2 |
 | 1.7 | Heatmap | alle Tracks als Linien-Layer, Filter Typ/Zeitraum; Kartenanbieter OSM/MapTiler, Overlay Luftbild Bayern ([plan.md §6.1](plan.md#61-kartenanbieter-satellit--vergleich)) | 1.5 |
 | 1.8 | Garmin-Sync | Go ruft `garmin-fetch` auf: Login-Dialog im Panel (inkl. MFA über stdin), Polling alle 2 h, Knopf „Jetzt synchronisieren“, Statusanzeige; Exit-Codes gemäß [garmin-fetch/README.md](../garmin-fetch/README.md#exit-codes) | 1.3, S1 |
 | 1.9 | Doppelaufzeichnungen | fēnix + Edge zur selben Fahrt zu einer Aktivität zusammenführen (Überlappung, Gerätepriorität Edge > fēnix) | 1.2, S2 |
+
+### Umsetzungsstand und Hinweise für die nächsten Inkremente
+
+- **1.1–1.3 erledigt** (Release `v0.1.0`). Mit 13 echten Fahrten geprüft: 37 ms pro Datei, Streams
+  belegen ca. 26 % der Rohdaten, Tracks behalten ca. 10 % der Punkte; Re-Import ändert nichts.
+- **Datenzugriff für 1.4–1.7:** `store.List/Get/Stream/Track`; Streams mit
+  `importer.DecodeStream` lesen (spaltenweise, `null` = kein Messwert), Tracks mit
+  `geo.DecodePolyline`. Lokale Kalendertage über `Activity.LocalStart()` (`tz_offset_s`).
+- **Neue Seiten:** Template in `internal/web/templates/`, in `NewHandler` registrieren, Navigation
+  in `layout.html` ergänzen; der Test `TestPagesUseIngressBaseAndRelativeURLs` muss die neue Seite
+  mitprüfen.
+- **Ableitungen ändern:** `importer.AnalysisVersion` erhöhen; ein erneuter Import (z. B. Ordner
+  einlesen) berechnet betroffene Aktivitäten neu. Eine automatische Neuberechnung aus `raw/` beim
+  Start ist noch nicht umgesetzt.
+- **Echte Daten testen:** `MYVELO_REAL_DATA=/pfad go test -run TestRealData -v ./internal/importer`.
+- **Für 1.8 vorbereitet:** Garmin-`deviceId` = FIT-`serial_number`, Startzeit = `time_created`
+  (S1); eine Garmin-Aktivität lässt sich daher ohne Download dem Schlüssel `fit:1:<deviceId>:<start>`
+  zuordnen.
 
 Querschnitt für jedes Inkrement: Tests, Doku in [my_velo/DOCS.md](../my_velo/DOCS.md) für Nutzer,
 Eintrag in [my_velo/CHANGELOG.md](../my_velo/CHANGELOG.md), Release über Tag.
@@ -67,6 +89,9 @@ Eintrag in [my_velo/CHANGELOG.md](../my_velo/CHANGELOG.md), Release über Tag.
   weitergegeben werden).
 - **Ingress:** nur relative URLs; neue Seiten mit einem Test absichern, der absolute Pfade ausschließt.
 - **Image:** im letzten Dockerfile-Stage keine `RUN`-Anweisungen, sonst braucht der aarch64-Build QEMU.
+- **Backup:** Das Add-on läuft mit `backup: cold`, weil SQLite (WAL) nur ohne aktiven Schreiber
+  konsistent kopiert wird.
+- **CSRF:** zustandsändernde Endpunkte nur per POST mit `requireHTMX` (Header `HX-Request`).
 - **Versionen:** Git-Tag `vX.Y.Z` = `version` in [my_velo/config.yaml](../my_velo/config.yaml) (CI prüft das).
 
 ## Entwicklungsumgebung
@@ -74,6 +99,6 @@ Eintrag in [my_velo/CHANGELOG.md](../my_velo/CHANGELOG.md), Release über Tag.
 ```bash
 go test ./...                                            # Go ≥ 1.26
 (cd garmin-fetch && PYTHONPATH=src python3 -m unittest discover -s tests)
-go run ./cmd/myvelo -dev                                 # http://localhost:8099
+go run ./cmd/myvelo -dev -data ./data -import-dir ./data/import   # http://localhost:8099
 docker build -t my-velo .                                # Add-on-Image lokal
 ```
