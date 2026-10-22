@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/stefanluchs/my-velo/internal/importer"
+	"github.com/stefanluchs/my-velo/internal/sport"
 	"github.com/stefanluchs/my-velo/internal/store"
 )
 
@@ -59,8 +60,8 @@ var funcs = template.FuncMap{
 	"kmh":        kmh,
 	"duration":   duration,
 	"localTime":  localTime,
-	"sportLabel": sportLabel,
-	"sportIcon":  sportIcon,
+	"sportLabel": sport.Label,
+	"sportIcon":  sport.Icon,
 	"orDash":     orDash,
 }
 

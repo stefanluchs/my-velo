@@ -155,9 +155,9 @@ func TestHealth(t *testing.T) {
 func TestStaticAndUnknownRoutes(t *testing.T) {
 	env := newTestEnv(t)
 	for path, want := range map[string]int{
-		"/static/app.css":                   http.StatusOK,
+		"/static/app.css":                        http.StatusOK,
 		"/static/vendor/htmx-2.0.11/htmx.min.js": http.StatusOK,
-		"/does-not-exist":                   http.StatusNotFound,
+		"/does-not-exist":                        http.StatusNotFound,
 	} {
 		if w := env.do(httptest.NewRequest(http.MethodGet, path, nil)); w.Code != want {
 			t.Errorf("%s: status %d, want %d", path, w.Code, want)
@@ -284,9 +284,6 @@ func TestOnlyOneJobAtATime(t *testing.T) {
 func TestFormatting(t *testing.T) {
 	if km(42195) != "42,2" || kmh(8) != "28,8" || kmh(0) != "–" || duration(3725) != "1:02:05" {
 		t.Error("number formatting")
-	}
-	if sportLabel("cycling", "gravel_cycling") != "Gravel" || sportLabel("cycling", "generic") != "Radfahren" || sportLabel("kitesurfing", "") != "kitesurfing" {
-		t.Error("sport labels")
 	}
 	ts := time.Date(2026, 10, 1, 8, 53, 0, 0, time.UTC)
 	if localTime(ts, 7200) != "01.10.2026 10:53" {

@@ -8,59 +8,6 @@ import (
 	"time"
 )
 
-// sportLabels maps FIT sport/sub-sport names to German labels. Sub-sport
-// entries take precedence; unknown values fall back to the sport label.
-var sportLabels = map[string]string{
-	"cycling":                  "Radfahren",
-	"cycling/road":             "Rennrad",
-	"cycling/gravel_cycling":   "Gravel",
-	"cycling/mountain":         "MTB",
-	"cycling/downhill":         "MTB",
-	"cycling/cyclocross":       "Cyclocross",
-	"cycling/commuting":        "Pendeln",
-	"cycling/e_bike_fitness":   "E-Bike",
-	"cycling/e_bike_mountain":  "E-MTB",
-	"cycling/indoor_cycling":   "Indoor",
-	"cycling/virtual_activity": "Indoor (virtuell)",
-	"e_biking":                 "E-Bike",
-	"running":                  "Laufen",
-	"running/trail":            "Trailrun",
-	"running/treadmill":        "Laufband",
-	"hiking":                   "Wandern",
-	"walking":                  "Gehen",
-	"swimming":                 "Schwimmen",
-	"multisport":               "Multisport",
-	"training":                 "Training",
-}
-
-func sportLabel(sport, subSport string) string {
-	if l, ok := sportLabels[sport+"/"+subSport]; ok {
-		return l
-	}
-	if l, ok := sportLabels[sport]; ok {
-		return l
-	}
-	if sport == "" {
-		return "Unbekannt"
-	}
-	return sport
-}
-
-func sportIcon(sport string) string {
-	switch sport {
-	case "cycling", "e_biking":
-		return "🚴"
-	case "running":
-		return "🏃"
-	case "hiking", "walking":
-		return "🥾"
-	case "swimming":
-		return "🏊"
-	default:
-		return "⏱️"
-	}
-}
-
 // km formats meters as kilometers with German decimal comma.
 func km(m float64) string { return germanFloat(m/1000, 1) }
 
