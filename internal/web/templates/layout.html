@@ -7,18 +7,20 @@
   <base href="{{.BasePath}}">
   <title>my Velo</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E🚲%3C/text%3E%3C/svg%3E">
-  <link rel="stylesheet" href="static/app.css">
+  <link rel="stylesheet" href="static/app.css?v={{.AssetVersion}}">
   <script src="static/vendor/htmx-2.0.11/htmx.min.js" defer></script>
+  {{block "head" .}}{{end}}
 </head>
 <body>
   <header class="topbar">
     <a class="brand" href="./">🚲 my Velo</a>
     <nav>
       <a href="./" {{if eq .Nav "index"}}aria-current="page"{{end}}>Übersicht</a>
+      <a href="activities" {{if eq .Nav "activities"}}aria-current="page"{{end}}>Aktivitäten</a>
       <a href="import" {{if eq .Nav "import"}}aria-current="page"{{end}}>Import</a>
     </nav>
   </header>
-  <main>
+  <main class="{{block "mainClass" .}}{{end}}">
     {{template "content" .}}
   </main>
   <footer>

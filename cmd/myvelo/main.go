@@ -90,12 +90,13 @@ func run(logger *slog.Logger, opts config.Options, addr, dataDir, importDir stri
 			MapProvider: opts.MapProvider,
 			MapKeySet:   opts.MapTilerKey != "",
 		},
-		Store:     st,
-		Importer:  &importer.Importer{Store: st, RawDir: filepath.Join(dataDir, "raw"), Logger: logger},
-		Jobs:      jobs,
-		ImportDir: importDir,
-		TempDir:   tempDir,
-		Logger:    logger,
+		Store:       st,
+		Importer:    &importer.Importer{Store: st, RawDir: filepath.Join(dataDir, "raw"), Logger: logger},
+		Jobs:        jobs,
+		ImportDir:   importDir,
+		TempDir:     tempDir,
+		MapTilerKey: opts.MapTilerKey,
+		Logger:      logger,
 	})
 	if !dev {
 		handler = web.AllowOnly([]string{web.SupervisorIngressIP}, handler)

@@ -11,6 +11,16 @@ import (
 // km formats meters as kilometers with German decimal comma.
 func km(m float64) string { return germanFloat(m/1000, 1) }
 
+// kmInt formats meters as whole kilometers with thousands separator.
+func kmInt(m float64) string {
+	n := int(math.Round(m / 1000))
+	s := fmt.Sprint(n)
+	for i := len(s) - 3; i > 0; i -= 3 {
+		s = s[:i] + "." + s[i:]
+	}
+	return s
+}
+
 func kmh(mps float64) string {
 	if mps <= 0 {
 		return "–"
@@ -33,6 +43,12 @@ func germanFloat(v float64, decimals int) string {
 func duration(seconds float64) string {
 	s := int(math.Round(seconds))
 	return fmt.Sprintf("%d:%02d:%02d", s/3600, s/60%60, s%60)
+}
+
+// hours formats seconds as h:mm for long totals.
+func hours(seconds float64) string {
+	m := int(math.Round(seconds / 60))
+	return fmt.Sprintf("%d:%02d", m/60, m%60)
 }
 
 // localTime formats a UTC time on the activity's wall clock.

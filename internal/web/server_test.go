@@ -282,6 +282,9 @@ func TestOnlyOneJobAtATime(t *testing.T) {
 }
 
 func TestFormatting(t *testing.T) {
+	if hours(49705) != "13:48" || kmInt(1234567) != "1.235" {
+		t.Errorf("hours=%s kmInt=%s", hours(49705), kmInt(1234567))
+	}
 	if km(42195) != "42,2" || kmh(8) != "28,8" || kmh(0) != "–" || duration(3725) != "1:02:05" {
 		t.Error("number formatting")
 	}

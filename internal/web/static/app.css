@@ -182,3 +182,138 @@ td.origin {
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
+
+a {
+  color: var(--accent);
+}
+
+.filters {
+  margin-bottom: 1rem;
+}
+
+.filters label {
+  display: inline-flex;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+select,
+input[type="date"],
+input[type="text"] {
+  font: inherit;
+  padding: 0.3rem 0.4rem;
+}
+
+.totals,
+.kpis {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 2rem;
+  padding: 0;
+  margin: 0 0 1rem;
+  list-style: none;
+}
+
+.kpis div {
+  min-width: 9rem;
+}
+
+.kpis dt {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.kpis dd {
+  margin: 0;
+  font-size: 1.15rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.activities a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.activities tr:hover {
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+
+.pager {
+  display: flex;
+  gap: 1.5rem;
+  justify-content: center;
+  margin-top: 1rem;
+}
+
+.breadcrumb {
+  margin: 0 0 0.5rem;
+}
+
+.activity-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem 1rem;
+}
+
+.activity-title h1 {
+  margin-bottom: 0;
+}
+
+.rename summary {
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.map {
+  height: min(60vh, 32rem);
+  border-radius: 0.5rem;
+  border: 1px solid var(--line);
+  margin-bottom: 1rem;
+}
+
+.position-marker {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 3px solid #fff;
+  box-shadow: 0 0 4px rgb(0 0 0 / 50%);
+}
+
+.layer-switcher button {
+  font-size: 1rem;
+}
+
+.layer-switcher form {
+  display: block;
+  padding: 0.4rem 0.6rem;
+  background: #fff;
+  color: #222;
+  font-size: 0.85rem;
+}
+
+.layer-switcher form[hidden] {
+  display: none;
+}
+
+.layer-switcher label {
+  display: block;
+  white-space: nowrap;
+  padding: 0.1rem 0;
+}
+
+.layer-switcher hr {
+  margin: 0.3rem 0;
+}
+
+.charts .chart {
+  margin-bottom: 0.5rem;
+}
+
+/* uPlot draws on a light canvas; keep labels readable in dark mode. */
+.charts .u-legend,
+.charts .u-axis {
+  color: inherit;
+}

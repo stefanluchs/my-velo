@@ -16,6 +16,8 @@ import (
 	"io/fs"
 	"log/slog"
 	"net/http"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/stefanluchs/my-velo/internal/importer"
@@ -47,12 +49,18 @@ type Deps struct {
 	ImportDir string
 	// TempDir holds uploads until their import job has finished.
 	TempDir string
-	Logger  *slog.Logger
+	// MapTilerKey enables MapTiler basemaps; empty hides them.
+	MapTilerKey string
+	Logger      *slog.Logger
 }
 
 type server struct {
 	Deps
-	pages map[string]*template.Template
+	pages     map[string]*template.Template
+	mapConfig MapConfig
+	// assetVersion is appended to own asset URLs so browsers fetch new
+	// files after an update even if they cached the old ones.
+	assetVersion string
 }
 
 var funcs = template.FuncMap{
@@ -63,6 +71,9 @@ var funcs = template.FuncMap{
 	"sportLabel": sport.Label,
 	"sportIcon":  sport.Icon,
 	"orDash":     orDash,
+	"kmInt":      kmInt,
+	"hours":      hours,
+	"add":        func(a, b int) int { return a + b },
 }
 
 // NewHandler returns the HTTP handler with all panel routes.
@@ -70,13 +81,17 @@ func NewHandler(d Deps) http.Handler {
 	if d.Logger == nil {
 		d.Logger = slog.New(slog.DiscardHandler)
 	}
-	s := &server{Deps: d, pages: map[string]*template.Template{}}
-	for _, page := range []string{"index.html", "import.html"} {
-		s.pages[page] = template.Must(template.New(page).Funcs(funcs).ParseFS(templateFS,
-			"templates/layout.html", "templates/import_status.html", "templates/"+page))
+	s := &server{Deps: d, pages: map[string]*template.Template{}, mapConfig: newMapConfig(d.Info.MapProvider, d.MapTilerKey),
+		assetVersion: d.Info.Version}
+	if s.assetVersion == "" || s.assetVersion == "dev" {
+		s.assetVersion = strconv.FormatInt(d.Info.StartedAt.Unix(), 36)
 	}
-	s.pages[fragmentImportStatus] = template.Must(template.New(fragmentImportStatus).Funcs(funcs).
-		ParseFS(templateFS, "templates/import_status.html"))
+	for _, page := range []string{"index.html", "import.html", "activities.html", "activity.html"} {
+		s.pages[page] = template.Must(template.New(page).Funcs(funcs).ParseFS(templateFS,
+			"templates/layout.html", "templates/import_status.html", "templates/activity_table.html", "templates/"+page))
+	}
+	s.pages[fragmentImportStatus] = s.pages["import.html"]
+	s.pages[fragmentActivityTitle] = s.pages["activity.html"]
 
 	static, err := fs.Sub(staticFS, "static")
 	if err != nil {
@@ -87,6 +102,10 @@ func NewHandler(d Deps) http.Handler {
 	mux.Handle("GET /static/", cacheStatic(http.StripPrefix("/static/", http.FileServerFS(static))))
 	mux.HandleFunc("GET /api/health", s.health)
 	mux.HandleFunc("GET /{$}", s.index)
+	mux.HandleFunc("GET /activities", s.activities)
+	mux.HandleFunc("GET /activities/{id}", s.activity)
+	mux.Handle("POST /activities/{id}/name", requireHTMX(http.HandlerFunc(s.rename)))
+	mux.HandleFunc("GET /api/activities/{id}/stream", s.stream)
 	mux.HandleFunc("GET /import", s.importPage)
 	mux.HandleFunc("GET /import/status", s.importStatus)
 	mux.Handle("POST /import/upload", requireHTMX(http.HandlerFunc(s.importUpload)))
@@ -95,21 +114,25 @@ func NewHandler(d Deps) http.Handler {
 	return logRequests(d.Logger, mux)
 }
 
-// fragmentImportStatus is the template rendered for htmx status updates.
-const fragmentImportStatus = "importStatus"
+// Fragments are named templates rendered alone for htmx swaps.
+const (
+	fragmentImportStatus  = "importStatus"
+	fragmentActivityTitle = "activityTitle"
+)
 
 // pageData is shared by all full pages.
 type pageData struct {
 	Info
-	BasePath string
-	Ingress  bool
-	Nav      string
-	Data     any
+	AssetVersion string
+	BasePath     string
+	Ingress      bool
+	Nav          string
+	Data         any
 }
 
 func (s *server) render(w http.ResponseWriter, r *http.Request, page, nav string, data any) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	pd := pageData{Info: s.Info, BasePath: BasePath(r), Ingress: r.Header.Get(HeaderIngressPath) != "", Nav: nav, Data: data}
+	pd := pageData{Info: s.Info, AssetVersion: s.assetVersion, BasePath: BasePath(r), Ingress: r.Header.Get(HeaderIngressPath) != "", Nav: nav, Data: data}
 	if err := s.pages[page].ExecuteTemplate(w, "layout", pd); err != nil {
 		s.Logger.Error("render", "page", page, "err", err)
 	}
@@ -179,9 +202,15 @@ func requireHTMX(next http.Handler) http.Handler {
 	})
 }
 
+// cacheStatic lets browsers keep assets. Vendored libraries carry their
+// version in the path and never change, own assets change with releases.
 func cacheStatic(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Cache-Control", "public, max-age=3600")
+		if strings.HasPrefix(r.URL.Path, "/static/vendor/") {
+			w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+		} else {
+			w.Header().Set("Cache-Control", "no-cache")
+		}
 		next.ServeHTTP(w, r)
 	})
 }
