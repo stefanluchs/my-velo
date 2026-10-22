@@ -4,6 +4,7 @@ go 1.26.0
 
 require (
 	github.com/muktihari/fit v0.28.5
+	github.com/paulmach/orb v0.13.0
 	modernc.org/sqlite v1.61.0
 )
 
