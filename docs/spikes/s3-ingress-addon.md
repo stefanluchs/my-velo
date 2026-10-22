@@ -21,8 +21,8 @@ dynamischem Basis-Pfad, Zugriffsschutz und aarch64-Image?
 | `<base href>` aus `X-Ingress-Path` | ✅ `/api/hassio_ingress/<token>/`; ungültige Header (HTML-Injection, fremde Präfixe, absolute URLs) fallen auf `/` zurück |
 | Assets und API-Aufrufe relativ | ✅ Test stellt sicher, dass keine absoluten Pfade (`src="/…"`) im HTML stehen |
 | Zugriffsschutz | ✅ nur `172.30.32.2` (Supervisor-Proxy); andere Adressen erhalten `403` (Unit-Test und Container-Test) |
-| Container amd64 | ✅ startet, liefert Statusseite; Image ca. 54 MB (Python-Alpine-Basis) |
-| Cross-Build aarch64 | ✅ ohne QEMU, da der Go-Teil auf der Build-Plattform kompiliert (`CGO_ENABLED=0`); Binary ist `ELF 64-bit, ARM aarch64, statically linked` |
+| Container amd64 | ✅ startet, liefert Statusseite; Image ca. 100 MB inkl. Python-Abhängigkeiten für `garmin-fetch` (S1) |
+| Cross-Build aarch64 | ✅ ohne QEMU: Go kompiliert auf der Build-Plattform (`CGO_ENABLED=0`), Python-Pakete kommen als aarch64-Wheels; der letzte Stage kopiert nur. Binary ist `ELF 64-bit, ARM aarch64, statically linked` |
 | Optionen | ✅ `/data/options.json` wird gelesen; fehlt die Datei, gelten Standardwerte; der MapTiler-Key wird nie ausgegeben |
 
 ## Erkenntnisse und Entscheidungen
