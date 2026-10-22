@@ -4,24 +4,47 @@
 # Build context is the repository root:
 #   docker build -t my-velo .
 #   docker buildx build --platform linux/arm64 --build-arg VERSION=0.1.0 .
+#
+# Build stages run on the build platform and produce artifacts for the target
+# platform; the final stage only copies files. aarch64 images therefore build
+# on x86 without QEMU. Do not add RUN instructions to the final stage.
 
 ARG GO_VERSION=1.26
 ARG PYTHON_VERSION=3.13
 
-FROM --platform=$BUILDPLATFORM golang:${GO_VERSION}-alpine AS build
+FROM --platform=$BUILDPLATFORM golang:${GO_VERSION}-alpine AS go-build
 ARG TARGETOS
 ARG TARGETARCH
 ARG VERSION=dev
 WORKDIR /src
-COPY go.mod go.sum* ./
+COPY go.mod go.sum ./
 RUN go mod download
 COPY cmd ./cmd
 COPY internal ./internal
-# Pure Go (no CGO) allows cross-compiling for aarch64 without QEMU.
 RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH \
     go build -trimpath -ldflags "-s -w -X main.version=${VERSION}" -o /out/myvelo ./cmd/myvelo
 
-# Python runtime is required for garmin-fetch (python-garminconnect).
+# garmin-fetch and its dependencies are installed from wheels for the target
+# platform (musllinux). All dependencies, including curl_cffi, ship such wheels.
+FROM --platform=$BUILDPLATFORM python:${PYTHON_VERSION}-alpine AS python-build
+ARG TARGETARCH
+ARG PYTHON_VERSION
+COPY garmin-fetch /src/garmin-fetch
+RUN pip wheel --no-cache-dir --no-deps -w /wheels /src/garmin-fetch \
+ && case "$TARGETARCH" in \
+      arm64) platform=musllinux_1_2_aarch64 ;; \
+      amd64) platform=musllinux_1_2_x86_64 ;; \
+      *) echo "unsupported arch $TARGETARCH" >&2; exit 1 ;; \
+    esac \
+ && pip install --no-cache-dir --target /opt/garmin-fetch \
+      --only-binary=:all: --platform "$platform" \
+      --python-version "$PYTHON_VERSION" --implementation cp \
+      /wheels/*.whl \
+ && rm -rf /opt/garmin-fetch/bin \
+ && mkdir -p /opt/bin \
+ && printf '#!/bin/sh\nexec python3 -m garmin_fetch "$@"\n' > /opt/bin/garmin-fetch \
+ && chmod 0755 /opt/bin/garmin-fetch
+
 FROM python:${PYTHON_VERSION}-alpine
 ARG VERSION=dev
 LABEL io.hass.type="addon" \
@@ -30,7 +53,11 @@ LABEL io.hass.type="addon" \
       org.opencontainers.image.source="https://github.com/stefanluchs/my-velo" \
       org.opencontainers.image.version="${VERSION}"
 
-COPY --from=build /out/myvelo /usr/local/bin/myvelo
+ENV PYTHONPATH=/opt/garmin-fetch \
+    PYTHONDONTWRITEBYTECODE=1
+COPY --from=python-build /opt/garmin-fetch /opt/garmin-fetch
+COPY --from=python-build /opt/bin/garmin-fetch /usr/local/bin/garmin-fetch
+COPY --from=go-build /out/myvelo /usr/local/bin/myvelo
 
 EXPOSE 8099
 ENTRYPOINT ["/usr/local/bin/myvelo"]
