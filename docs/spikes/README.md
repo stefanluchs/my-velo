@@ -8,5 +8,5 @@ Punkte.
 | Spike | Frage | Status |
 |---|---|---|
 | S1 – Garmin-Fetcher | Lassen sich neue Aktivitäten als Original-FIT ohne Drittplattform automatisch abholen, inkl. MFA? | offen |
-| S2 – FIT-Parsing | Liefert `muktihari/fit` alle Daten und einen stabilen Schlüssel für idempotente Importe? | offen |
+| [S2 – FIT-Parsing](s2-fit-parsing.md) | Liefert `muktihari/fit` alle Daten und einen stabilen Schlüssel für idempotente Importe? | ✅ bestätigt, Prüfung mit eigenem Export offen |
 | [S3 – Ingress-Add-on](s3-ingress-addon.md) | Läuft ein Go-Server als Add-on korrekt hinter dem Home-Assistant-Ingress? | ✅ technisch bestätigt, Abnahme auf dem Pi offen |
