@@ -33,6 +33,13 @@ offiziellen Basis-URL und ohne den Login über Garmin SSO.
 | Download | ✅ HTTP 200, ZIP 101.043 Bytes mit `24791513851_ACTIVITY.fit` |
 | FIT-Schlüssel | ✅ `fit:1:3616025585:1792502945` – identisch mit dem Bestand (S1/S2) |
 
+Go-Client [`internal/garmin`](../../internal/garmin) live gegen das eigene Konto (23.10.2026,
+`TestLiveAPI`): Token-Laufzeit aus dem JWT gelesen (24 h), 5 Aktivitäten der letzten 10 Tage,
+Download ergibt exakt die Original-FIT (204.882 Bytes, gleicher Schlüssel).
+
+Unterschied zum inoffiziellen Weg: Die Aktivitätsliste der Personal API liefert `deviceId = 0`.
+my Velo nutzt das Feld nicht (Gerät und Seriennummer kommen aus der FIT-Datei).
+
 ## Bewertung
 
 | | `garmin-fetch` (inoffiziell, S1) | Personal API |

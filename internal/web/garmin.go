@@ -6,7 +6,6 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/stefanluchs/my-velo/internal/garmin"
@@ -15,13 +14,6 @@ import (
 type garminData struct {
 	Status garmin.Status
 	Job    *ImportJob
-}
-
-// garminLoginData feeds the login fragment.
-type garminLoginData struct {
-	Step  string // "credentials" or "mfa"
-	Email string
-	Error string
 }
 
 func (s *server) garminPage(w http.ResponseWriter, r *http.Request) {
@@ -37,65 +29,6 @@ func (s *server) garminPage(w http.ResponseWriter, r *http.Request) {
 	s.render(w, r, "garmin.html", "garmin", garminData{Status: st, Job: s.Jobs.Last()})
 }
 
-// garminLogin starts a login. The password is passed to garmin-fetch and
-// never stored or logged.
-func (s *server) garminLogin(w http.ResponseWriter, r *http.Request) {
-	if s.Garmin == nil {
-		http.NotFound(w, r)
-		return
-	}
-	email := strings.TrimSpace(r.PostFormValue("email"))
-	password := r.PostFormValue("password")
-	if email == "" || password == "" {
-		s.renderLogin(w, garminLoginData{Step: "credentials", Email: email, Error: "Bitte E-Mail und Passwort eingeben."})
-		return
-	}
-	state, err := s.Garmin.Login(email, password)
-	switch {
-	case err != nil:
-		s.Logger.Warn("garmin login failed", "err", err)
-		s.renderLogin(w, garminLoginData{Step: "credentials", Email: email, Error: loginMessage(err)})
-	case state == garmin.NeedsMFA:
-		s.renderLogin(w, garminLoginData{Step: "mfa", Email: email})
-	default:
-		w.Header().Set("HX-Refresh", "true")
-		w.WriteHeader(http.StatusNoContent)
-	}
-}
-
-func (s *server) garminMFA(w http.ResponseWriter, r *http.Request) {
-	if s.Garmin == nil {
-		http.NotFound(w, r)
-		return
-	}
-	code := strings.TrimSpace(r.PostFormValue("code"))
-	if err := s.Garmin.SubmitMFA(code); err != nil {
-		s.Logger.Warn("garmin mfa failed", "err", err)
-		s.renderLogin(w, garminLoginData{Step: "credentials", Error: loginMessage(err) + " Bitte erneut anmelden."})
-		return
-	}
-	w.Header().Set("HX-Refresh", "true")
-	w.WriteHeader(http.StatusNoContent)
-}
-
-func loginMessage(err error) string {
-	switch {
-	case errors.Is(err, garmin.ErrAuthRequired):
-		return "Anmeldung abgelehnt: E-Mail oder Passwort falsch, oder das Konto ist gesperrt."
-	case errors.Is(err, garmin.ErrRateLimited):
-		return "Zu viele Anmeldeversuche. Bitte mindestens eine Stunde warten."
-	case errors.Is(err, garmin.ErrMFAFailed):
-		return "Der Bestätigungscode wurde abgelehnt."
-	case errors.Is(err, garmin.ErrNoPendingLogin), errors.Is(err, garmin.ErrUnavailable):
-		return err.Error() + "."
-	}
-	return "Anmeldung fehlgeschlagen: " + err.Error()
-}
-
-func (s *server) renderLogin(w http.ResponseWriter, d garminLoginData) {
-	s.renderFragment(w, fragmentGarminLogin, d)
-}
-
 // garminSync starts a sync and returns the import status fragment.
 func (s *server) garminSync(w http.ResponseWriter, r *http.Request) {
 	if s.Garmin == nil {
@@ -106,28 +39,15 @@ func (s *server) garminSync(w http.ResponseWriter, r *http.Request) {
 	switch {
 	case errors.Is(err, ErrJobRunning):
 		w.WriteHeader(http.StatusConflict)
-	case errors.Is(err, garmin.ErrAuthRequired), errors.Is(err, garmin.ErrUnavailable):
+	case errors.Is(err, garmin.ErrAuthRequired):
 		w.WriteHeader(http.StatusConflict)
-		s.renderFragment(w, fragmentImportStatus, &ImportJob{Error: err.Error() + "."})
+		s.renderFragment(w, fragmentImportStatus, &ImportJob{Error: "Kein Garmin-API-Schlüssel konfiguriert."})
 		return
 	case err != nil:
 		s.serverError(w, "start garmin sync", err)
 		return
 	}
 	s.renderFragment(w, fragmentImportStatus, s.Jobs.Last())
-}
-
-func (s *server) garminLogout(w http.ResponseWriter, r *http.Request) {
-	if s.Garmin == nil {
-		http.NotFound(w, r)
-		return
-	}
-	if err := s.Garmin.Logout(); err != nil {
-		s.serverError(w, "garmin logout", err)
-		return
-	}
-	w.Header().Set("HX-Refresh", "true")
-	w.WriteHeader(http.StatusNoContent)
 }
 
 // clock formats a time on the local clock of the Home Assistant instance.

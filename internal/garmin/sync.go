@@ -3,13 +3,13 @@
 package garmin
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
-	"os"
-	"path/filepath"
+	"strconv"
 	"time"
 
 	"github.com/stefanluchs/my-velo/internal/importer"
@@ -44,13 +44,12 @@ type State struct {
 
 // Syncer imports new Garmin Connect activities.
 type Syncer struct {
-	Runner   *Runner
+	Client   *Client
 	Importer *importer.Importer
 	Store    *store.Store
-	Inbox    string
 	// Since is the first day of the initial backfill.
 	Since time.Time
-	// Delay between downloads, to be gentle with the unofficial API.
+	// Delay between downloads, to stay well below any rate limit.
 	Delay  time.Duration
 	Now    func() time.Time
 	Logger *slog.Logger
@@ -89,65 +88,84 @@ func (s *Syncer) from(ctx context.Context) time.Time {
 // report (the panel shows them like a manual import).
 func (s *Syncer) Run(ctx context.Context, report func(importer.Result)) (State, error) {
 	state := State{At: s.now().UTC()}
-	known, err := s.Store.SourceKeys(ctx, Source)
-	if err != nil {
-		return state, err
-	}
-	opts := SyncOptions{Since: s.from(ctx), Inbox: s.Inbox, KnownIDs: known, Delay: s.Delay}
-	s.logger().Info("garmin sync started", "since", opts.Since.Format(time.DateOnly), "known", len(known))
-
-	done, runErr := s.Runner.Sync(ctx, opts, func(ev Event) {
-		if ev.Event != "activity" {
-			return
-		}
-		switch ev.Status {
-		case "downloaded":
-			res := s.importFile(ctx, ev)
-			if res.Status != importer.StatusFailed {
-				state.Imported++
-			}
-			if report != nil {
-				report(res)
-			}
-		case "known":
-			state.Known++
-			if changed, err := s.Store.SetSourceTitle(ctx, Source, ev.ActivityID, ev.Name); err == nil && changed {
-				state.Renamed++
-			}
-		case "no_file":
-			state.NoFile++
-		}
-	})
-	state.Listed = done.Listed
+	runErr := s.run(ctx, &state, report)
 	s.finish(ctx, &state, runErr)
 	return state, runErr
 }
 
-// importFile imports one downloaded activity and links its Garmin ID.
-// Inbox files are removed afterwards; the importer keeps the raw file.
-func (s *Syncer) importFile(ctx context.Context, ev Event) importer.Result {
-	origin := "garmin:" + ev.ActivityID
-	f, err := os.Open(ev.File)
+func (s *Syncer) run(ctx context.Context, state *State, report func(importer.Result)) error {
+	keys, err := s.Store.SourceKeys(ctx, Source)
 	if err != nil {
-		return importer.Result{Origin: origin, Status: importer.StatusFailed, Error: err.Error()}
+		return err
 	}
-	res := s.Importer.ImportReader(ctx, f, origin)
-	f.Close()
-	if res.Status == importer.StatusFailed {
-		s.logger().Warn("garmin import failed", "activity", ev.ActivityID, "err", res.Error)
-		return res
+	known := make(map[string]bool, len(keys))
+	for _, k := range keys {
+		known[k] = true
 	}
-	if err := s.Store.AttachSource(ctx, res.ActivityID, Source, ev.ActivityID, ev.Name); err != nil {
-		s.logger().Warn("link garmin activity", "activity", ev.ActivityID, "err", err)
+	since := s.from(ctx)
+	s.logger().Info("garmin sync started", "since", since.Format(time.DateOnly), "known", len(known))
+
+	list, err := s.Client.Activities(ctx, since)
+	if err != nil {
+		return err
 	}
-	removeInbox(ev.File)
-	return res
+	state.Listed = len(list)
+	// Oldest first, so an interrupted backfill resumes in order.
+	for i := len(list) - 1; i >= 0; i-- {
+		act := list[i]
+		id := strconv.FormatInt(act.ID, 10)
+		if act.ID <= 0 {
+			continue
+		}
+		if known[id] {
+			state.Known++
+			if changed, err := s.Store.SetSourceTitle(ctx, Source, id, act.Name); err == nil && changed {
+				state.Renamed++
+			}
+			continue
+		}
+		res, err := s.importActivity(ctx, act)
+		if errors.Is(err, ErrNoFile) {
+			state.NoFile++
+			continue
+		}
+		if err != nil {
+			return err
+		}
+		if res.Status != importer.StatusFailed {
+			state.Imported++
+		}
+		if report != nil {
+			report(res)
+		}
+		if s.Delay > 0 {
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case <-time.After(s.Delay):
+			}
+		}
+	}
+	return nil
 }
 
-func removeInbox(fitPath string) {
-	_ = os.Remove(fitPath)
-	ext := filepath.Ext(fitPath)
-	_ = os.Remove(fitPath[:len(fitPath)-len(ext)] + ".json")
+// importActivity downloads one activity, imports it and links its Garmin ID.
+// Download errors other than ErrNoFile abort the sync (auth, rate limit).
+func (s *Syncer) importActivity(ctx context.Context, act Activity) (importer.Result, error) {
+	id := strconv.FormatInt(act.ID, 10)
+	data, err := s.Client.DownloadFIT(ctx, act.ID)
+	if err != nil {
+		return importer.Result{}, err
+	}
+	res := s.Importer.ImportReader(ctx, bytes.NewReader(data), "garmin:"+id)
+	if res.Status == importer.StatusFailed || res.Status == importer.StatusSkipped {
+		s.logger().Warn("garmin import failed", "activity", id, "status", res.Status, "err", res.Error)
+		return res, nil
+	}
+	if err := s.Store.AttachSource(ctx, res.ActivityID, Source, id, act.Name); err != nil {
+		s.logger().Warn("link garmin activity", "activity", id, "err", err)
+	}
+	return res, nil
 }
 
 func (s *Syncer) finish(ctx context.Context, state *State, runErr error) {

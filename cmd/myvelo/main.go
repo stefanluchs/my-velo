@@ -42,7 +42,6 @@ func main() {
 	importDir := flag.String("import-dir", "/share/myvelo/import", "drop folder for bulk imports")
 	optionsPath := flag.String("options", "", "path to add-on options.json (default <data>/options.json)")
 	dev := flag.Bool("dev", false, "development mode: accept requests from any address")
-	garminFetch := flag.String("garmin-fetch", "garmin-fetch", "garmin-fetch executable")
 	flag.Parse()
 	if *optionsPath == "" {
 		*optionsPath = filepath.Join(*dataDir, "options.json")
@@ -54,13 +53,13 @@ func main() {
 		os.Exit(1)
 	}
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: opts.SlogLevel()}))
-	if err := run(logger, opts, *addr, *dataDir, *importDir, *garminFetch, *dev); err != nil {
+	if err := run(logger, opts, *addr, *dataDir, *importDir, *dev); err != nil {
 		logger.Error("my Velo failed", "err", err)
 		os.Exit(1)
 	}
 }
 
-func run(logger *slog.Logger, opts config.Options, addr, dataDir, importDir, garminFetch string, dev bool) error {
+func run(logger *slog.Logger, opts config.Options, addr, dataDir, importDir string, dev bool) error {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
@@ -89,7 +88,8 @@ func run(logger *slog.Logger, opts config.Options, addr, dataDir, importDir, gar
 	defer cancelJobs()
 	jobs := web.NewJobs(jobCtx)
 	imp := &importer.Importer{Store: st, RawDir: filepath.Join(dataDir, "raw"), Logger: logger}
-	garminSvc := newGarminService(logger, opts, st, imp, jobs, filepath.Join(dataDir, "garmin"), garminFetch)
+	removeLegacyGarminTokens(logger, filepath.Join(dataDir, "garmin"))
+	garminSvc := newGarminService(logger, opts, st, imp, jobs)
 	go garminSvc.RunScheduler(jobCtx, 2*time.Minute)
 
 	handler := web.NewHandler(web.Deps{
@@ -135,19 +135,16 @@ func run(logger *slog.Logger, opts config.Options, addr, dataDir, importDir, gar
 	return nil
 }
 
-// newGarminService wires the Garmin Connect sync. Tokens live in dir
-// (part of the backups); downloads pass through dir/inbox.
+// newGarminService wires the Garmin Connect sync via the Personal API.
 func newGarminService(logger *slog.Logger, opts config.Options, st *store.Store, imp *importer.Importer,
-	jobs *web.Jobs, dir, command string) *garmin.Service {
+	jobs *web.Jobs) *garmin.Service {
 	since, ok := opts.GarminSince()
 	if !ok {
 		logger.Warn("invalid garmin_sync_since, using default", "value", opts.GarminSyncSince, "default", config.DefaultGarminSince)
 	}
-	runner := &garmin.Runner{Command: []string{command}, TokenDir: dir, Logger: logger}
 	svc := &garmin.Service{
-		Runner: runner,
 		Syncer: &garmin.Syncer{
-			Runner: runner, Importer: imp, Store: st, Inbox: filepath.Join(dir, "inbox"),
+			Client: garmin.NewClient(opts.GarminAPIKey, logger), Importer: imp, Store: st,
 			Since: since, Delay: time.Second, Logger: logger,
 		},
 		StartJob: func(label string, fn func(ctx context.Context, report func(importer.Result)) error) error {
@@ -160,7 +157,21 @@ func newGarminService(logger *slog.Logger, opts config.Options, st *store.Store,
 	if n := ha.FromEnv(); n != nil {
 		svc.Notifier = n
 	}
-	logger.Info("garmin sync configured", "available", runner.Available(), "interval", svc.Interval,
+	logger.Info("garmin sync configured", "api_key", svc.Syncer.Client.Configured(), "interval", svc.Interval,
 		"since", since.Format(time.DateOnly), "notifications", svc.Notifier != nil)
 	return svc
+}
+
+// removeLegacyGarminTokens deletes the session tokens of the unofficial
+// Garmin login used up to 0.5.x. They grant account access and are no longer
+// used since the sync moved to the Personal API.
+func removeLegacyGarminTokens(logger *slog.Logger, dir string) {
+	if _, err := os.Stat(dir); err != nil {
+		return
+	}
+	if err := os.RemoveAll(dir); err != nil {
+		logger.Warn("remove legacy garmin tokens", "dir", dir, "err", err)
+		return
+	}
+	logger.Info("removed legacy garmin tokens", "dir", dir)
 }

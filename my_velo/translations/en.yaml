@@ -9,6 +9,9 @@ configuration:
   maptiler_key:
     name: MapTiler API key
     description: Free key from your MapTiler account (cloud.maptiler.com). Only needed for the maptiler provider.
+  garmin_api_key:
+    name: "Garmin: API key"
+    description: Garmin Connect Personal API key (Garmin Connect → Settings → Personal API Key). Leave empty to disable the automatic sync.
   garmin_sync_interval_hours:
     name: "Garmin: sync every … hours"
     description: Interval of the automatic Garmin Connect sync; 0 disables it.

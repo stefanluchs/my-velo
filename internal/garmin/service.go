@@ -4,7 +4,6 @@ package garmin
 
 import (
 	"context"
-	"errors"
 	"log/slog"
 	"sync"
 	"time"
@@ -21,14 +20,10 @@ type Notifier interface {
 	Dismiss(ctx context.Context, id string) error
 }
 
-const notificationID = "myvelo_garmin_login"
+const notificationID = "myvelo_garmin_api_key"
 
-// mfaExpiry is how long a login waits for the MFA code.
-const mfaExpiry = 5 * time.Minute
-
-// Service bundles login, manual and scheduled sync for the panel.
+// Service bundles manual and scheduled syncs for the panel.
 type Service struct {
-	Runner   *Runner
 	Syncer   *Syncer
 	StartJob JobStarter
 	Notifier Notifier
@@ -37,31 +32,26 @@ type Service struct {
 	Logger   *slog.Logger
 
 	mu      sync.Mutex
-	session *Session
 	nextRun time.Time
 }
 
-// ErrNoPendingLogin is returned by SubmitMFA without a waiting login.
-var ErrNoPendingLogin = errors.New("keine Anmeldung wartet auf einen Code – bitte erneut anmelden")
-
 // Status describes the sync for the panel.
 type Status struct {
-	Available  bool
-	HasTokens  bool
-	PendingMFA bool
+	Configured bool
 	Since      time.Time
 	Interval   time.Duration
 	NextRun    time.Time
 	Last       *State
 }
 
+// KeyProblem reports whether the last sync failed because of the API key.
+func (st Status) KeyProblem() bool { return st.Last != nil && st.Last.NeedsLogin }
+
 // Status returns the current state without contacting Garmin.
 func (s *Service) Status(ctx context.Context) (Status, error) {
 	s.mu.Lock()
 	st := Status{
-		Available:  s.Runner.Available(),
-		HasTokens:  s.Runner.HasTokens(),
-		PendingMFA: s.session != nil,
+		Configured: s.Syncer.Client.Configured(),
 		Since:      s.Syncer.Since,
 		Interval:   s.Interval,
 		NextRun:    s.nextRun,
@@ -72,102 +62,46 @@ func (s *Service) Status(ctx context.Context) (Status, error) {
 	return st, err
 }
 
-// Login starts a login; with NeedsMFA the code must follow via SubmitMFA.
-func (s *Service) Login(email, password string) (LoginState, error) {
-	s.mu.Lock()
-	old := s.session
-	s.session = nil
-	s.mu.Unlock()
-	if old != nil {
-		old.Close()
-	}
-
-	// Garmin may take a while; the status page must not block meanwhile.
-	state, session, err := s.Runner.Login(email, password, mfaExpiry)
-	if err != nil {
-		return 0, err
-	}
-	if state == NeedsMFA {
-		s.mu.Lock()
-		s.session = session
-		s.mu.Unlock()
-		time.AfterFunc(mfaExpiry, func() { s.expire(session) })
-		return state, nil
-	}
-	s.loggedIn()
-	return state, nil
-}
-
-// SubmitMFA completes a pending login.
-func (s *Service) SubmitMFA(code string) error {
-	s.mu.Lock()
-	session := s.session
-	s.session = nil
-	s.mu.Unlock()
-	if session == nil {
-		return ErrNoPendingLogin
-	}
-	if err := session.SubmitMFA(code); err != nil {
-		return err
-	}
-	s.loggedIn()
-	return nil
-}
-
-func (s *Service) expire(session *Session) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if s.session == session {
-		s.session.Close()
-		s.session = nil
-	}
-}
-
-// loggedIn dismisses the "login required" notification and starts a sync so
-// new activities appear right away.
-func (s *Service) loggedIn() {
-	if s.Notifier != nil {
-		if err := s.Notifier.Dismiss(context.Background(), notificationID); err != nil {
-			s.logger().Warn("dismiss notification", "err", err)
-		}
-	}
-	go func() {
-		if err := s.SyncNow(); err != nil {
-			s.logger().Info("sync after login not started", "err", err)
-		}
-	}()
-}
-
-// Logout deletes the tokens.
-func (s *Service) Logout() error { return s.Runner.Logout() }
-
 // SyncNow starts a sync as background job. It returns web.ErrJobRunning if
-// another import runs and ErrAuthRequired without tokens.
+// another import runs and ErrAuthRequired without API key.
 func (s *Service) SyncNow() error {
-	if !s.Runner.Available() {
-		return ErrUnavailable
-	}
-	if !s.Runner.HasTokens() {
+	if !s.Syncer.Client.Configured() {
 		return ErrAuthRequired
 	}
 	return s.StartJob("Garmin Connect", func(ctx context.Context, report func(importer.Result)) error {
 		before, _ := LastState(ctx, s.Syncer.Store)
 		state, err := s.Syncer.Run(ctx, report)
-		if state.NeedsLogin && (before == nil || !before.NeedsLogin) && s.Notifier != nil {
-			if nerr := s.Notifier.Notify(context.Background(), notificationID, "my Velo: Garmin-Anmeldung erforderlich",
-				"Der automatische Abgleich mit Garmin Connect benötigt eine neue Anmeldung. "+
-					"Bitte im Panel **my Velo → Garmin** erneut anmelden."); nerr != nil {
-				s.logger().Warn("notify", "err", nerr)
-			}
-		}
+		s.notify(before, state)
 		return err
 	})
+}
+
+// notify shows a Home Assistant notification once when the key stops
+// working and removes it after the next successful sync.
+func (s *Service) notify(before *State, after State) {
+	if s.Notifier == nil {
+		return
+	}
+	ctx := context.Background()
+	var err error
+	switch {
+	case after.NeedsLogin && (before == nil || !before.NeedsLogin):
+		err = s.Notifier.Notify(ctx, notificationID, "my Velo: Garmin-API-Schlüssel erneuern",
+			"Der Abgleich mit Garmin Connect wurde abgelehnt – der API-Schlüssel ist abgelaufen oder ungültig. "+
+				"Neuen Schlüssel in Garmin Connect unter **Einstellungen → Personal API Key** erzeugen und in der "+
+				"Konfiguration des Add-ons **my Velo** als `garmin_api_key` eintragen.")
+	case after.OK && before != nil && before.NeedsLogin:
+		err = s.Notifier.Dismiss(ctx, notificationID)
+	}
+	if err != nil {
+		s.logger().Warn("home assistant notification", "err", err)
+	}
 }
 
 // RunScheduler syncs every Interval until ctx ends. The first run starts
 // after initialDelay so the add-on start is not slowed down.
 func (s *Service) RunScheduler(ctx context.Context, initialDelay time.Duration) {
-	if s.Interval <= 0 {
+	if s.Interval <= 0 || !s.Syncer.Client.Configured() {
 		return
 	}
 	next := initialDelay
@@ -181,9 +115,6 @@ func (s *Service) RunScheduler(ctx context.Context, initialDelay time.Duration) 
 		case <-time.After(next):
 		}
 		next = s.Interval
-		if !s.Runner.HasTokens() {
-			continue
-		}
 		if err := s.SyncNow(); err != nil {
 			s.logger().Info("scheduled sync skipped", "err", err)
 		}

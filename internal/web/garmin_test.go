@@ -3,14 +3,9 @@
 package web
 
 import (
-	"bufio"
 	"context"
-	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -19,60 +14,16 @@ import (
 	"github.com/stefanluchs/my-velo/internal/importer"
 )
 
-// TestGarminFetchHelper emulates the login and status commands of
-// garmin-fetch for the panel tests (full protocol tests: internal/garmin).
-func TestGarminFetchHelper(t *testing.T) {
-	if os.Getenv("GO_WANT_WEB_GARMIN_HELPER") != "1" {
-		return
-	}
-	args := os.Args
-	for i, a := range args {
-		if a == "--" {
-			args = args[i+1:]
-			break
-		}
-	}
-	tokenFile := filepath.Join(args[2], garmin.TokenFile)
-	out := json.NewEncoder(os.Stdout)
-	in := bufio.NewReader(os.Stdin)
-	read := func() map[string]string {
-		line, _ := in.ReadString('\n')
-		var m map[string]string
-		_ = json.Unmarshal([]byte(line), &m)
-		return m
-	}
-	switch args[0] {
-	case "login":
-		creds := read()
-		if creds["email"] == "bad@x" {
-			_ = out.Encode(map[string]string{"event": "error", "code": "auth_required", "message": "401"})
-			os.Exit(2)
-		}
-		_ = out.Encode(map[string]string{"event": "mfa_required"})
-		if read()["mfa_code"] != "123456" {
-			_ = out.Encode(map[string]string{"event": "error", "code": "mfa_failed", "message": "rejected"})
-			os.Exit(4)
-		}
-		_ = os.WriteFile(tokenFile, []byte("{}"), 0o600)
-		_ = out.Encode(map[string]string{"event": "login_ok"})
-	case "sync":
-		_ = out.Encode(map[string]any{"event": "done", "listed": 0})
-	}
-	os.Exit(0)
-}
-
-func withGarmin(t *testing.T, env *testEnv, available bool) *garmin.Service {
+// withGarmin wires a Garmin service; apiURL "" means no reachable API.
+func withGarmin(t *testing.T, env *testEnv, key, apiURL string) *garmin.Service {
 	t.Helper()
-	t.Setenv("GO_WANT_WEB_GARMIN_HELPER", "1")
-	cmd := []string{os.Args[0], "-test.run=^TestGarminFetchHelper$", "--"}
-	if !available {
-		cmd = []string{"/nonexistent/garmin-fetch"}
+	client := garmin.NewClient(key, nil)
+	if apiURL != "" {
+		client.BaseURL = apiURL
 	}
-	runner := &garmin.Runner{Command: cmd, TokenDir: filepath.Join(t.TempDir(), "garmin")}
 	svc := &garmin.Service{
-		Runner: runner,
-		Syncer: &garmin.Syncer{Runner: runner, Store: env.store, Importer: &importer.Importer{Store: env.store},
-			Inbox: filepath.Join(t.TempDir(), "inbox"), Since: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)},
+		Syncer: &garmin.Syncer{Client: client, Store: env.store, Importer: &importer.Importer{Store: env.store},
+			Since: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)},
 		StartJob: func(label string, fn func(ctx context.Context, report func(importer.Result)) error) error {
 			return env.jobs.Start(label, fn, nil)
 		},
@@ -85,9 +36,8 @@ func withGarmin(t *testing.T, env *testEnv, available bool) *garmin.Service {
 	return svc
 }
 
-func htmxPost(env *testEnv, path string, form url.Values) *httptest.ResponseRecorder {
-	r := httptest.NewRequest(http.MethodPost, path, strings.NewReader(form.Encode()))
-	r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+func htmxPost(env *testEnv, path string) *httptest.ResponseRecorder {
+	r := httptest.NewRequest(http.MethodPost, path, nil)
 	r.Header.Set("HX-Request", "true")
 	return env.do(r)
 }
@@ -102,80 +52,64 @@ func TestGarminPageHiddenWithoutService(t *testing.T) {
 	}
 }
 
-func TestGarminLoginFlow(t *testing.T) {
+func TestGarminPageWithoutKey(t *testing.T) {
 	env := newTestEnv(t)
-	withGarmin(t, env, true)
-
+	withGarmin(t, env, "", "")
 	body := env.do(ingressGET("/garmin")).Body.String()
-	for _, want := range []string{"nicht angemeldet", `hx-post="garmin/login"`, "alle 2 Stunden", "01.01.2026", `<a href="garmin" aria-current="page">Garmin</a>`} {
+	for _, want := range []string{"kein API-Schlüssel", "garmin_api_key", "personalApiToken", "alle 2 Stunden", "01.01.2026"} {
 		if !strings.Contains(body, want) {
 			t.Errorf("page missing %q", want)
 		}
+	}
+	if strings.Contains(body, `hx-post="garmin/sync"`) || strings.Contains(body, `type="password"`) {
+		t.Error("no sync button and no password form without key")
 	}
 	withoutBase := strings.Replace(body, `<base href="/api/hassio_ingress/tok3n/">`, "", 1)
 	if m := absoluteURL.FindString(withoutBase); m != "" {
 		t.Errorf("absolute URL %q", m)
 	}
-
-	w := htmxPost(env, "/garmin/login", url.Values{"email": {"bad@x"}, "password": {"secret-pw"}})
-	if w.Code != http.StatusOK || !strings.Contains(w.Body.String(), "Anmeldung abgelehnt") || strings.Contains(w.Body.String(), "secret-pw") {
-		t.Errorf("bad login %d: %s", w.Code, w.Body.String())
-	}
-
-	w = htmxPost(env, "/garmin/login", url.Values{"email": {"me@x"}, "password": {"pw"}})
-	if !strings.Contains(w.Body.String(), `name="code"`) {
-		t.Fatalf("expected MFA form: %s", w.Body.String())
-	}
-	if !strings.Contains(env.do(ingressGET("/garmin")).Body.String(), `name="code"`) {
-		t.Error("reloaded page should continue with the MFA step")
-	}
-	w = htmxPost(env, "/garmin/mfa", url.Values{"code": {"123456"}})
-	if w.Code != http.StatusNoContent || w.Header().Get("HX-Refresh") != "true" {
-		t.Fatalf("mfa %d: %s", w.Code, w.Body.String())
-	}
-	env.jobs.Wait() // the login triggers a first sync
-	time.Sleep(100 * time.Millisecond)
-	env.jobs.Wait()
-
-	body = env.do(ingressGET("/garmin")).Body.String()
-	if !strings.Contains(body, "verbunden") || !strings.Contains(body, "Jetzt synchronisieren") || strings.Contains(body, `hx-post="garmin/login"`) {
-		t.Error("connected state expected")
-	}
-
-	if w := htmxPost(env, "/garmin/mfa", url.Values{"code": {"1"}}); !strings.Contains(w.Body.String(), "keine Anmeldung wartet") {
-		t.Errorf("mfa without login: %s", w.Body.String())
-	}
-	if w := htmxPost(env, "/garmin/logout", nil); w.Code != http.StatusNoContent {
-		t.Errorf("logout %d", w.Code)
-	}
-	if !strings.Contains(env.do(ingressGET("/garmin")).Body.String(), "nicht angemeldet") {
-		t.Error("logged out state expected")
-	}
-}
-
-func TestGarminSyncButtonAndDashboard(t *testing.T) {
-	env := newTestEnv(t)
-	svc := withGarmin(t, env, false)
-
-	body := env.do(ingressGET("/garmin")).Body.String()
-	if !strings.Contains(body, "nicht installiert") {
-		t.Error("unavailable notice expected")
-	}
-	_ = os.MkdirAll(svc.Runner.TokenDir, 0o700)
-	_ = os.WriteFile(filepath.Join(svc.Runner.TokenDir, garmin.TokenFile), []byte("{}"), 0o600)
-	w := htmxPost(env, "/garmin/sync", nil)
-	if w.Code != http.StatusConflict || !strings.Contains(w.Body.String(), "nicht verfügbar") {
-		t.Errorf("sync unavailable %d: %s", w.Code, w.Body.String())
+	if w := htmxPost(env, "/garmin/sync"); w.Code != http.StatusConflict || !strings.Contains(w.Body.String(), "Kein Garmin-API-Schlüssel") {
+		t.Errorf("sync without key %d: %s", w.Code, w.Body.String())
 	}
 
 	env.importFixtures(t, 1)
-	if body := env.do(ingressGET("/")).Body.String(); !strings.Contains(body, "Garmin Connect verbunden") {
-		t.Error("dashboard sync line expected")
+	if !strings.Contains(env.do(ingressGET("/")).Body.String(), "nicht eingerichtet") {
+		t.Error("dashboard hint expected")
 	}
-	for _, path := range []string{"/garmin/sync", "/garmin/login", "/garmin/mfa", "/garmin/logout"} {
-		r := httptest.NewRequest(http.MethodPost, path, nil)
-		if w := env.do(r); w.Code != http.StatusForbidden {
-			t.Errorf("%s without HX-Request: %d", path, w.Code)
+}
+
+func TestGarminSyncAndKeyProblem(t *testing.T) {
+	env := newTestEnv(t)
+	// The API rejects the key: the sync fails and the page asks for a new key.
+	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusUnauthorized)
+	}))
+	defer api.Close()
+	withGarmin(t, env, "old-key", api.URL)
+
+	if body := env.do(ingressGET("/garmin")).Body.String(); !strings.Contains(body, "eingerichtet") || !strings.Contains(body, `hx-post="garmin/sync"`) {
+		t.Error("configured state expected")
+	}
+	if w := htmxPost(env, "/garmin/sync"); w.Code != http.StatusOK || !strings.Contains(w.Body.String(), `id="import-status"`) {
+		t.Fatalf("sync %d", w.Code)
+	}
+	env.jobs.Wait()
+	body := env.do(ingressGET("/garmin")).Body.String()
+	if !strings.Contains(body, "Schlüssel abgelehnt") || !strings.Contains(body, "fehlgeschlagen") {
+		t.Error("key problem expected after rejected sync")
+	}
+	env.importFixtures(t, 1)
+	if !strings.Contains(env.do(ingressGET("/")).Body.String(), "API-Schlüssel abgelehnt") {
+		t.Error("dashboard key warning expected")
+	}
+
+	r := httptest.NewRequest(http.MethodPost, "/garmin/sync", nil)
+	if w := env.do(r); w.Code != http.StatusForbidden {
+		t.Errorf("without HX-Request: %d", w.Code)
+	}
+	for _, gone := range []string{"/garmin/login", "/garmin/mfa", "/garmin/logout"} {
+		if w := htmxPost(env, gone); w.Code != http.StatusNotFound && w.Code != http.StatusMethodNotAllowed {
+			t.Errorf("%s should be gone: %d", gone, w.Code)
 		}
 	}
 }

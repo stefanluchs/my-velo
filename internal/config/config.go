@@ -20,6 +20,8 @@ type Options struct {
 	LogLevel    string `json:"log_level"`
 	MapProvider string `json:"map_provider"`
 	MapTilerKey string `json:"maptiler_key"`
+	// GarminAPIKey is the Garmin Connect Personal API key; empty disables the sync.
+	GarminAPIKey string `json:"garmin_api_key"`
 	// GarminSyncIntervalHours between automatic Garmin syncs; 0 disables them.
 	GarminSyncIntervalHours int `json:"garmin_sync_interval_hours"`
 	// GarminSyncSince is the first day (YYYY-MM-DD) of the initial Garmin backfill.

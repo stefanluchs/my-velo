@@ -3,13 +3,16 @@
 package garmin
 
 import (
-	"bufio"
+	"archive/zip"
+	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"os"
-	"path/filepath"
+	"net/http"
+	"net/http/httptest"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -20,200 +23,215 @@ import (
 	"github.com/stefanluchs/my-velo/internal/store"
 )
 
-// TestHelperProcess emulates garmin-fetch (protocol: garmin-fetch/README.md).
-// It only runs as subprocess started by fakeRunner.
-//
-// Behaviour by input:
-//   - login: e-mail "bad@x" → auth error (exit 2); "mfa@x" → asks for a code,
-//     accepts "123456"; otherwise logs in directly.
-//   - sync: "downloads" every <id>.fit in FAKE_GARMIN_FILES that is not in
-//     --known-ids; known IDs are reported with their title. FAKE_GARMIN_MODE
-//     "ratelimit" or "expired" fail with exit 3 or 2.
-func TestHelperProcess(t *testing.T) {
-	if os.Getenv("GO_WANT_GARMIN_HELPER") != "1" {
+const testKey = "test-api-key"
+
+// fakeAPI emulates the Personal API as verified in spike S4: the token
+// endpoint answers with the bare JWT, downloads are ZIP files.
+type fakeAPI struct {
+	t           *testing.T
+	mu          sync.Mutex
+	activities  []Activity       // newest first, like Garmin
+	files       map[int64][]byte // FIT per activity; missing → 404
+	tokens      int              // issued tokens
+	revoke      bool             // reject all bearer tokens
+	keyRejected bool
+	rateLimited bool
+	searches    []string
+	downloads   []int64
+	exp         time.Time
+}
+
+func newFakeAPI(t *testing.T) (*fakeAPI, *Client) {
+	f := &fakeAPI{t: t, files: map[int64][]byte{}, exp: time.Now().Add(24 * time.Hour)}
+	srv := httptest.NewServer(f)
+	t.Cleanup(srv.Close)
+	c := NewClient(testKey, nil)
+	c.BaseURL = srv.URL
+	return f, c
+}
+
+func jwt(exp time.Time, n int) string {
+	enc := base64.RawURLEncoding.EncodeToString
+	payload, _ := json.Marshal(map[string]any{"exp": exp.Unix(), "n": n})
+	return enc([]byte(`{"alg":"none"}`)) + "." + enc(payload) + ".sig"
+}
+
+func (f *fakeAPI) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if r.URL.Path == tokenPath {
+		if r.Method != http.MethodPost || r.Header.Get("Authorization") != "ApiKey "+testKey || f.keyRejected {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		f.tokens++
+		fmt.Fprint(w, jwt(f.exp, f.tokens))
 		return
 	}
-	args := os.Args
-	for i, a := range args {
-		if a == "--" {
-			args = args[i+1:]
-			break
-		}
+	if f.rateLimited {
+		w.WriteHeader(http.StatusTooManyRequests)
+		return
 	}
-	flags := map[string]string{}
-	for i := 1; i+1 < len(args); i += 2 {
-		flags[strings.TrimPrefix(args[i], "--")] = args[i+1]
+	if f.revoke || !strings.HasPrefix(r.Header.Get("Authorization"), "Bearer ey") {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
 	}
-	out := json.NewEncoder(os.Stdout)
-	emit := func(v map[string]any) { _ = out.Encode(v) }
-	fail := func(code int, kind, msg string) {
-		emit(map[string]any{"event": "error", "code": kind, "message": msg})
-		os.Exit(code)
-	}
-	tokenFile := filepath.Join(flags["tokenstore"], TokenFile)
-	in := bufio.NewReader(os.Stdin)
-	readJSON := func() map[string]string {
-		line, err := in.ReadString('\n')
-		if err != nil {
-			fail(1, "bad_input", "EOF")
+	switch {
+	case r.URL.Path == searchPath:
+		f.searches = append(f.searches, r.URL.RawQuery)
+		start, _ := strconv.Atoi(r.URL.Query().Get("start"))
+		limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
+		end := min(start+limit, len(f.activities))
+		page := []Activity{}
+		if start < end {
+			page = f.activities[start:end]
 		}
-		var m map[string]string
-		_ = json.Unmarshal([]byte(line), &m)
-		return m
-	}
-
-	switch args[0] {
-	case "login":
-		creds := readJSON()
-		switch creds["email"] {
-		case "bad@x":
-			fail(2, "auth_required", "Authentication failed (401)")
-		case "mfa@x":
-			emit(map[string]any{"event": "mfa_required"})
-			if readJSON()["mfa_code"] != "123456" {
-				fail(4, "mfa_failed", "MFA code rejected")
-			}
+		_ = json.NewEncoder(w).Encode(page)
+	case strings.HasPrefix(r.URL.Path, downloadPath):
+		id, _ := strconv.ParseInt(strings.TrimPrefix(r.URL.Path, downloadPath), 10, 64)
+		f.downloads = append(f.downloads, id)
+		data, ok := f.files[id]
+		if !ok {
+			w.WriteHeader(http.StatusNotFound)
+			return
 		}
-		_ = os.WriteFile(tokenFile, []byte("{}"), 0o600)
-		emit(map[string]any{"event": "login_ok"})
-	case "status":
-		if _, err := os.Stat(tokenFile); err != nil {
-			fail(2, "auth_required", "Username and password are required")
-		}
-		emit(map[string]any{"event": "status", "logged_in": true})
-	case "sync":
-		switch os.Getenv("FAKE_GARMIN_MODE") {
-		case "ratelimit":
-			fail(3, "rate_limited", "429")
-		case "expired":
-			fail(2, "auth_required", "token expired")
-		}
-		known := map[string]bool{}
-		if b, err := os.ReadFile(flags["known-ids"]); err == nil {
-			for _, id := range strings.Fields(string(b)) {
-				known[id] = true
-			}
-		}
-		files, _ := filepath.Glob(filepath.Join(os.Getenv("FAKE_GARMIN_FILES"), "*.fit"))
-		downloaded, skipped := 0, 0
-		for _, f := range files {
-			id := strings.TrimSuffix(filepath.Base(f), ".fit")
-			meta := map[string]any{"event": "activity", "activity_id": id, "name": "Garmin " + id + os.Getenv("FAKE_GARMIN_SUFFIX"), "type": "road_biking"}
-			if known[id] {
-				meta["status"] = "known"
-				skipped++
-				emit(meta)
-				continue
-			}
-			target := filepath.Join(flags["out"], id+".fit")
-			b, _ := os.ReadFile(f)
-			_ = os.WriteFile(target, b, 0o600)
-			_ = os.WriteFile(filepath.Join(flags["out"], id+".json"), []byte("{}"), 0o600)
-			meta["status"], meta["file"] = "downloaded", target
-			downloaded++
-			emit(meta)
-		}
-		emit(map[string]any{"event": "activity", "status": "no_file", "activity_id": "1"})
-		emit(map[string]any{"event": "done", "listed": len(files) + 1, "downloaded": downloaded, "skipped": skipped, "no_file": 1})
+		var buf bytes.Buffer
+		zw := zip.NewWriter(&buf)
+		fw, _ := zw.Create(fmt.Sprintf("%d_ACTIVITY.fit", id))
+		_, _ = fw.Write(data)
+		_ = zw.Close()
+		_, _ = w.Write(buf.Bytes())
 	default:
-		fail(1, "internal", fmt.Sprintf("unknown command %v", args))
-	}
-	os.Exit(0)
-}
-
-func fakeRunner(t *testing.T) *Runner {
-	t.Helper()
-	t.Setenv("GO_WANT_GARMIN_HELPER", "1")
-	return &Runner{Command: []string{os.Args[0], "-test.run=^TestHelperProcess$", "--"}, TokenDir: filepath.Join(t.TempDir(), "garmin")}
-}
-
-func TestLogin(t *testing.T) {
-	r := fakeRunner(t)
-	if r.HasTokens() {
-		t.Fatal("no tokens expected")
-	}
-	if err := r.Status(context.Background()); !errors.Is(err, ErrAuthRequired) {
-		t.Errorf("status without tokens: %v", err)
-	}
-	if _, _, err := r.Login("bad@x", "pw", time.Minute); !errors.Is(err, ErrAuthRequired) {
-		t.Errorf("bad credentials: %v", err)
-	}
-	state, session, err := r.Login("ok@x", "pw", time.Minute)
-	if err != nil || state != LoggedIn || session != nil || !r.HasTokens() {
-		t.Fatalf("login: %v %v %v", state, session, err)
-	}
-	if err := r.Status(context.Background()); err != nil {
-		t.Errorf("status: %v", err)
-	}
-	if err := r.Logout(); err != nil || r.HasTokens() {
-		t.Errorf("logout: %v", err)
+		w.WriteHeader(http.StatusNotFound)
 	}
 }
 
-func TestLoginWithMFA(t *testing.T) {
-	r := fakeRunner(t)
-	state, session, err := r.Login("mfa@x", "pw", time.Minute)
-	if err != nil || state != NeedsMFA || session == nil {
-		t.Fatalf("login: %v %v", state, err)
+// add registers an activity (prepended: the list is newest first).
+func (f *fakeAPI) add(id int64, name string, fit []byte) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	a := Activity{ID: id, Name: name}
+	f.activities = append([]Activity{a}, f.activities...)
+	if fit != nil {
+		f.files[id] = fit
 	}
-	if err := session.SubmitMFA("123456"); err != nil || !r.HasTokens() {
-		t.Fatalf("mfa: %v", err)
+}
+
+func fixture(t *testing.T, serial uint32, day int) []byte {
+	o := fittest.Default()
+	o.Serial = serial
+	o.Created = fittest.Created.AddDate(0, 0, day)
+	return fittest.Encode(t, o)
+}
+
+func TestTokenIsCachedAndRenewed(t *testing.T) {
+	f, c := newFakeAPI(t)
+	ctx := context.Background()
+	for range 3 {
+		if _, err := c.Activities(ctx, time.Time{}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if f.tokens != 1 {
+		t.Errorf("token requested %d times, want 1", f.tokens)
 	}
 
-	_ = r.Logout()
-	_, session, _ = r.Login("mfa@x", "pw", time.Minute)
-	if err := session.SubmitMFA("000000"); !errors.Is(err, ErrMFAFailed) {
-		t.Errorf("wrong code: %v", err)
+	// Within an hour of expiry → new token before the next call.
+	c.now = func() time.Time { return f.exp.Add(-30 * time.Minute) }
+	_, _ = c.Activities(ctx, time.Time{})
+	if f.tokens != 2 {
+		t.Errorf("token not renewed before expiry: %d", f.tokens)
 	}
-	// Abandoned MFA: closing ends the process without hanging.
-	_, session, _ = r.Login("mfa@x", "pw", time.Minute)
-	done := make(chan struct{})
-	go func() { session.Close(); close(done) }()
-	select {
-	case <-done:
-	case <-time.After(10 * time.Second):
-		t.Fatal("Close hangs")
+	c.now = nil
+
+	// Bearer rejected (key rotated) → one retry with a fresh token.
+	f.mu.Lock()
+	f.revoke = true
+	f.mu.Unlock()
+	if _, err := c.Activities(ctx, time.Time{}); !errors.Is(err, ErrAuthRequired) {
+		t.Errorf("revoked: %v", err)
+	}
+	if f.tokens != 3 {
+		t.Errorf("expected one forced renewal, tokens=%d", f.tokens)
+	}
+}
+
+func TestErrors(t *testing.T) {
+	ctx := context.Background()
+	f, c := newFakeAPI(t)
+	f.keyRejected = true
+	if _, err := c.Activities(ctx, time.Time{}); !errors.Is(err, ErrAuthRequired) {
+		t.Errorf("invalid key: %v", err)
+	}
+	f.keyRejected, f.rateLimited = false, true
+	if _, err := c.Activities(ctx, time.Time{}); !errors.Is(err, ErrRateLimited) {
+		t.Errorf("rate limit: %v", err)
+	}
+	if _, err := NewClient("", nil).Activities(ctx, time.Time{}); !errors.Is(err, ErrAuthRequired) {
+		t.Errorf("no key: %v", err)
+	}
+	if NewClient("  ", nil).Configured() {
+		t.Error("blank key must count as not configured")
+	}
+}
+
+func TestActivitiesPaging(t *testing.T) {
+	f, c := newFakeAPI(t)
+	for i := range 250 {
+		f.add(int64(1000+i), "x", nil)
+	}
+	list, err := c.Activities(context.Background(), time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(list) != 250 || len(f.searches) != 3 {
+		t.Errorf("%d activities in %d requests", len(list), len(f.searches))
+	}
+	if !strings.Contains(f.searches[2], "start=200") || !strings.Contains(f.searches[0], "startDate=2026-01-01") {
+		t.Errorf("queries %v", f.searches)
+	}
+}
+
+func TestExtractFIT(t *testing.T) {
+	fit := fixture(t, 1, 0)
+	if got, err := extractFIT(fit); err != nil || !bytes.Equal(got, fit) {
+		t.Error("bare FIT")
+	}
+	var buf bytes.Buffer
+	zw := zip.NewWriter(&buf)
+	w, _ := zw.Create("track.gpx")
+	_, _ = w.Write([]byte("<gpx/>"))
+	_ = zw.Close()
+	if _, err := extractFIT(buf.Bytes()); !errors.Is(err, ErrNoFile) {
+		t.Errorf("gpx zip: %v", err)
+	}
+	if _, err := extractFIT([]byte("garbage")); !errors.Is(err, ErrNoFile) {
+		t.Errorf("garbage: %v", err)
 	}
 }
 
 type env struct {
+	api    *fakeAPI
 	syncer *Syncer
 	store  *store.Store
-	files  string
 }
 
 func newEnv(t *testing.T) *env {
 	t.Helper()
-	ctx := context.Background()
-	st, err := store.OpenMemory(ctx)
+	st, err := store.OpenMemory(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { st.Close() })
-	r := fakeRunner(t)
-	if _, _, err := r.Login("ok@x", "pw", time.Minute); err != nil {
-		t.Fatal(err)
-	}
-	files := t.TempDir()
-	t.Setenv("FAKE_GARMIN_FILES", files)
-	for i, id := range []string{"101", "102"} {
-		o := fittest.Default()
-		o.Serial = uint32(500 + i)
-		o.Created = fittest.Created.AddDate(0, 0, i)
-		if err := os.WriteFile(filepath.Join(files, id+".fit"), fittest.Encode(t, o), 0o600); err != nil {
-			t.Fatal(err)
-		}
-	}
+	api, client := newFakeAPI(t)
+	api.add(101, "Garmin 101", fixture(t, 500, 0))
+	api.add(102, "Garmin 102", fixture(t, 501, 1))
+	api.add(103, "Manuell erfasst", nil)
 	now := time.Date(2026, 10, 22, 12, 0, 0, 0, time.UTC)
-	return &env{
-		store: st,
-		files: files,
-		syncer: &Syncer{
-			Runner: r, Store: st, Importer: &importer.Importer{Store: st},
-			Inbox: filepath.Join(t.TempDir(), "inbox"), Since: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
-			Now: func() time.Time { return now },
-		},
-	}
+	return &env{api: api, store: st, syncer: &Syncer{
+		Client: client, Store: st, Importer: &importer.Importer{Store: st},
+		Since: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC), Now: func() time.Time { return now },
+	}}
 }
 
 func TestSyncImportsAndLinks(t *testing.T) {
@@ -224,49 +242,44 @@ func TestSyncImportsAndLinks(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !state.OK || state.Imported != 2 || state.NoFile != 1 || state.Listed != 3 || len(results) != 2 {
+	if !state.OK || state.Listed != 3 || state.Imported != 2 || state.NoFile != 1 || len(results) != 2 {
 		t.Errorf("first sync %+v, %d results", state, len(results))
 	}
-	if keys, _ := e.store.SourceKeys(ctx, Source); len(keys) != 2 {
-		t.Errorf("garmin keys %v", keys)
+	// Oldest first.
+	if e.api.downloads[0] != 101 {
+		t.Errorf("download order %v", e.api.downloads)
 	}
-	a, _ := e.store.Get(ctx, results[0].ActivityID)
-	if a.Name != "Garmin 101" {
+	if a, _ := e.store.Get(ctx, results[0].ActivityID); a.Name != "Garmin 101" {
 		t.Errorf("name %q", a.Name)
 	}
-	if left, _ := filepath.Glob(filepath.Join(e.syncer.Inbox, "*")); len(left) != 0 {
-		t.Errorf("inbox not emptied: %v", left)
-	}
 
-	// Second run: nothing to download, titles changed in Garmin Connect follow.
-	t.Setenv("FAKE_GARMIN_SUFFIX", " (umbenannt)")
+	// Second run downloads nothing; renames in Garmin Connect follow.
+	e.api.mu.Lock()
+	e.api.activities[2].Name = "Garmin 101 (umbenannt)"
+	e.api.downloads = nil
+	e.api.mu.Unlock()
 	state, err = e.syncer.Run(ctx, nil)
-	if err != nil || state.Imported != 0 || state.Known != 2 || state.Renamed != 2 {
+	if err != nil || state.Known != 2 || state.Renamed != 1 || state.Imported != 0 || state.NoFile != 1 {
 		t.Errorf("second sync %+v %v", state, err)
+	}
+	if len(e.api.downloads) != 1 || e.api.downloads[0] != 103 {
+		t.Errorf("only the activity without file is retried: %v", e.api.downloads)
 	}
 	if a, _ := e.store.Get(ctx, results[0].ActivityID); a.Name != "Garmin 101 (umbenannt)" {
 		t.Errorf("rename not applied: %q", a.Name)
 	}
-	if n, _ := e.store.Count(ctx); n != 2 {
-		t.Errorf("activities %d", n)
-	}
-
-	last, err := LastState(ctx, e.store)
-	if err != nil || last == nil || !last.OK || last.Known != 2 {
+	if last, err := LastState(ctx, e.store); err != nil || !last.OK || last.Known != 2 {
 		t.Errorf("last state %+v %v", last, err)
 	}
-	// Next run starts 7 days before the last successful sync.
 	if from := e.syncer.from(ctx); !from.Equal(time.Date(2026, 10, 15, 12, 0, 0, 0, time.UTC)) {
 		t.Errorf("from %v", from)
 	}
 }
 
-func TestSyncLinksPreviouslyUploadedFiles(t *testing.T) {
+func TestSyncLinksPreviouslyImportedFiles(t *testing.T) {
 	ctx := context.Background()
 	e := newEnv(t)
-	// The same FIT file was uploaded manually before.
-	raw, _ := os.ReadFile(filepath.Join(e.files, "101.fit"))
-	res := e.syncer.Importer.ImportReader(ctx, strings.NewReader(string(raw)), "upload")
+	res := e.syncer.Importer.ImportReader(ctx, bytes.NewReader(e.api.files[101]), "export.zip")
 	if res.Status != store.Created {
 		t.Fatal(res)
 	}
@@ -281,22 +294,22 @@ func TestSyncLinksPreviouslyUploadedFiles(t *testing.T) {
 		t.Errorf("statuses %v", statuses)
 	}
 	if a, _ := e.store.Get(ctx, res.ActivityID); a.Name != "Garmin 101" {
-		t.Errorf("uploaded activity not linked/named: %q", a.Name)
+		t.Errorf("export activity not linked/named: %q", a.Name)
 	}
 }
 
-func TestSyncErrors(t *testing.T) {
+func TestSyncErrorsKeepWindow(t *testing.T) {
 	ctx := context.Background()
 	e := newEnv(t)
-	t.Setenv("FAKE_GARMIN_MODE", "ratelimit")
+	e.api.keyRejected = true
 	state, err := e.syncer.Run(ctx, nil)
-	if !errors.Is(err, ErrRateLimited) || state.OK || state.NeedsLogin {
-		t.Errorf("rate limit: %+v %v", state, err)
+	if !errors.Is(err, ErrAuthRequired) || !state.NeedsLogin || state.OK {
+		t.Errorf("rejected key: %+v %v", state, err)
 	}
-	t.Setenv("FAKE_GARMIN_MODE", "expired")
+	e.api.keyRejected, e.api.rateLimited = false, true
 	state, err = e.syncer.Run(ctx, nil)
-	if !errors.Is(err, ErrAuthRequired) || !state.NeedsLogin {
-		t.Errorf("expired: %+v %v", state, err)
+	if !errors.Is(err, ErrRateLimited) || state.NeedsLogin {
+		t.Errorf("rate limit: %+v %v", state, err)
 	}
 	if _, ok, _ := e.store.Setting(ctx, settingLastSync); ok {
 		t.Error("failed runs must not move the sync window")
@@ -304,9 +317,8 @@ func TestSyncErrors(t *testing.T) {
 }
 
 type fakeNotifier struct {
-	mu        sync.Mutex
-	notified  int
-	dismissed int
+	mu                  sync.Mutex
+	notified, dismissed int
 }
 
 func (n *fakeNotifier) Notify(context.Context, string, string, string) error {
@@ -323,61 +335,43 @@ func (n *fakeNotifier) Dismiss(context.Context, string) error {
 	return nil
 }
 
-// syncStarter runs jobs synchronously.
-func syncStarter(label string, fn func(ctx context.Context, report func(importer.Result)) error) error {
+func syncStarter(_ string, fn func(ctx context.Context, report func(importer.Result)) error) error {
 	return fn(context.Background(), func(importer.Result) {})
 }
 
-func TestServiceNotifiesOnceWhenLoginExpires(t *testing.T) {
+func TestServiceNotifiesOnceAndDismisses(t *testing.T) {
 	e := newEnv(t)
 	n := &fakeNotifier{}
-	svc := &Service{Runner: e.syncer.Runner, Syncer: e.syncer, StartJob: syncStarter, Notifier: n}
-	t.Setenv("FAKE_GARMIN_MODE", "expired")
+	svc := &Service{Syncer: e.syncer, StartJob: syncStarter, Notifier: n, Interval: 2 * time.Hour}
+	e.api.keyRejected = true
 	for range 2 {
 		if err := svc.SyncNow(); !errors.Is(err, ErrAuthRequired) {
 			t.Errorf("sync: %v", err)
 		}
 	}
-	if n.notified != 1 {
-		t.Errorf("notified %d times, want once", n.notified)
-	}
 	st, err := svc.Status(context.Background())
-	if err != nil || !st.HasTokens || st.Last == nil || !st.Last.NeedsLogin {
+	if err != nil || !st.Configured || !st.KeyProblem() {
 		t.Errorf("status %+v %v", st, err)
 	}
-
-	t.Setenv("FAKE_GARMIN_MODE", "")
-	if _, err := svc.Login("mfa@x", "pw"); err != nil {
+	e.api.keyRejected = false
+	if err := svc.SyncNow(); err != nil {
 		t.Fatal(err)
 	}
-	if st, _ := svc.Status(context.Background()); !st.PendingMFA {
-		t.Error("pending MFA expected")
-	}
-	if err := svc.SubmitMFA("123456"); err != nil {
-		t.Fatal(err)
-	}
-	if err := svc.SubmitMFA("123456"); !errors.Is(err, ErrNoPendingLogin) {
-		t.Errorf("second submit: %v", err)
-	}
-	time.Sleep(200 * time.Millisecond) // sync after login runs in a goroutine
-	n.mu.Lock()
-	defer n.mu.Unlock()
-	if n.dismissed != 1 {
-		t.Errorf("dismissed %d", n.dismissed)
+	if n.notified != 1 || n.dismissed != 1 {
+		t.Errorf("notified %d, dismissed %d", n.notified, n.dismissed)
 	}
 }
 
-func TestUnavailable(t *testing.T) {
-	r := &Runner{Command: []string{"/nonexistent/garmin-fetch"}, TokenDir: t.TempDir()}
-	if r.Available() {
-		t.Fatal("must be unavailable")
-	}
-	_ = os.WriteFile(filepath.Join(r.TokenDir, TokenFile), []byte("{}"), 0o600)
-	if err := r.Status(context.Background()); !errors.Is(err, ErrUnavailable) {
-		t.Errorf("status: %v", err)
-	}
-	svc := &Service{Runner: r, Syncer: &Syncer{}, StartJob: syncStarter}
-	if err := svc.SyncNow(); !errors.Is(err, ErrUnavailable) {
+func TestServiceWithoutKey(t *testing.T) {
+	svc := &Service{Syncer: &Syncer{Client: NewClient("", nil)}, StartJob: syncStarter, Interval: time.Hour}
+	if err := svc.SyncNow(); !errors.Is(err, ErrAuthRequired) {
 		t.Errorf("sync: %v", err)
+	}
+	done := make(chan struct{})
+	go func() { svc.RunScheduler(context.Background(), 0); close(done) }()
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		t.Error("scheduler must not run without key")
 	}
 }

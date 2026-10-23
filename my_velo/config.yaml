@@ -30,20 +30,21 @@ map:
 backup: cold
 backup_exclude:
   - tmp
-  - garmin/inbox
 
-# Needed to show a notification when the Garmin login expires.
+# Needed to show a notification when the Garmin API key is rejected.
 homeassistant_api: true
 
 options:
   log_level: info
   map_provider: osm
   maptiler_key: ""
+  garmin_api_key: ""
   garmin_sync_interval_hours: 2
   garmin_sync_since: "2026-01-01"
 schema:
   log_level: list(debug|info|warning|error)
   map_provider: list(osm|maptiler)
   maptiler_key: password?
+  garmin_api_key: password?
   garmin_sync_interval_hours: int(0,24)
   garmin_sync_since: match(^\d{4}-\d{2}-\d{2}$)

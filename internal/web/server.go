@@ -82,7 +82,6 @@ var funcs = template.FuncMap{
 	"hours":      hours,
 	"signedKm":   signedKm,
 	"clock":      clock,
-	"loginStep":  func(step string) garminLoginData { return garminLoginData{Step: step} },
 	"every":      every,
 	"pct": func(v float64, of int) float64 {
 		if of == 0 {
@@ -130,7 +129,6 @@ func NewHandler(d Deps) http.Handler {
 	}
 	s.pages[fragmentImportStatus] = s.pages["import.html"]
 	s.pages[fragmentActivityTitle] = s.pages["activity.html"]
-	s.pages[fragmentGarminLogin] = s.pages["garmin.html"]
 
 	static, err := fs.Sub(staticFS, "static")
 	if err != nil {
@@ -150,10 +148,7 @@ func NewHandler(d Deps) http.Handler {
 	mux.HandleFunc("GET /heatmap", s.heatmap)
 	mux.HandleFunc("GET /api/tracks", s.tracks)
 	mux.HandleFunc("GET /garmin", s.garminPage)
-	mux.Handle("POST /garmin/login", requireHTMX(http.HandlerFunc(s.garminLogin)))
-	mux.Handle("POST /garmin/mfa", requireHTMX(http.HandlerFunc(s.garminMFA)))
 	mux.Handle("POST /garmin/sync", requireHTMX(http.HandlerFunc(s.garminSync)))
-	mux.Handle("POST /garmin/logout", requireHTMX(http.HandlerFunc(s.garminLogout)))
 	mux.HandleFunc("GET /import", s.importPage)
 	mux.HandleFunc("GET /import/status", s.importStatus)
 	mux.Handle("POST /import/upload", requireHTMX(http.HandlerFunc(s.importUpload)))
@@ -166,7 +161,6 @@ func NewHandler(d Deps) http.Handler {
 const (
 	fragmentImportStatus  = "importStatus"
 	fragmentActivityTitle = "activityTitle"
-	fragmentGarminLogin   = "garminLogin"
 )
 
 // pageData is shared by all full pages.

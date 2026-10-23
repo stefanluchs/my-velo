@@ -4,7 +4,7 @@
 <h1>Übersicht</h1>
 <section class="card empty">
   <p>Noch keine Aktivitäten vorhanden.</p>
-  <p><a class="button" href="import">Aktivitäten importieren</a>{{if .Garmin}} oder <a class="button" href="garmin">mit Garmin Connect verbinden</a>{{end}}</p>
+  <p><a class="button" href="import">Aktivitäten importieren</a>{{if .Garmin}} oder <a class="button" href="garmin">Garmin Connect einrichten</a>{{end}}</p>
 </section>
 {{else}}
 <div class="dashboard-head">
@@ -26,10 +26,10 @@
 
 {{with .Garmin}}
 <p class="sync-line">
-  {{if not .HasTokens}}Garmin Connect: <a href="garmin">nicht verbunden – jetzt verbinden</a>
-  {{else if and .Last .Last.NeedsLogin}}<span class="down">Garmin Connect: Anmeldung abgelaufen</span> – <a href="garmin">erneut anmelden</a>
+  {{if not .Configured}}Garmin Connect: <a href="garmin">nicht eingerichtet – so geht's</a>
+  {{else if .KeyProblem}}<span class="down">Garmin Connect: API-Schlüssel abgelehnt</span> – <a href="garmin">erneuern</a>
   {{else if .Last}}Garmin Connect: zuletzt {{clock .Last.At}}{{if .Last.OK}}, {{.Last.Imported}} neu{{else}}, <span class="down">fehlgeschlagen</span>{{end}} · <a href="garmin">Details</a>
-  {{else}}Garmin Connect verbunden – <a href="garmin">ersten Abgleich starten</a>{{end}}
+  {{else}}Garmin Connect eingerichtet – <a href="garmin">ersten Abgleich starten</a>{{end}}
 </p>
 {{end}}
 
