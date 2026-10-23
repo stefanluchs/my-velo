@@ -4,9 +4,9 @@
 my Velo speichert und zeigt deine Sportaktivitäten lokal in Home Assistant. Quelle sind die
 Original-FIT-Dateien deiner Geräte.
 
-> **Stand 0.5.0:** Import und automatischer Abgleich mit Garmin Connect, Dashboard,
-> Aktivitätenliste, Detailansicht mit Karte und Diagrammen, Statistik mit Jahreszielen und
-> persönliche Heatmap.
+> **Stand 0.6.0:** Import und automatischer Abgleich über die offizielle Garmin Connect Personal
+> API, Dashboard, Aktivitätenliste, Detailansicht mit Karte und Diagrammen, Statistik mit
+> Jahreszielen und Eddington-Zahl, persönliche Heatmap.
 
 ## Installation
 
@@ -53,36 +53,44 @@ Add-on und seine Daten bleiben dabei erhalten.
 
 ## Abgleich mit Garmin Connect
 
-1. Im Panel **Garmin** öffnen, E-Mail und Passwort des Garmin-Kontos eingeben.
-2. Fordert Garmin einen **Bestätigungscode** an (E-Mail oder App), erscheint ein zweites Feld;
-   der Code ist wenige Minuten gültig.
-3. Nach der Anmeldung startet sofort der erste Abgleich ab `garmin_sync_since` (Standard
-   01.01.2026), danach automatisch alle `garmin_sync_interval_hours` Stunden (Standard 2).
-   **Jetzt synchronisieren** startet ihn sofort.
+my Velo nutzt die offizielle **Garmin Connect Personal API**. Dafür brauchst du einen
+API-Schlüssel – kein Passwort, kein Bestätigungscode.
+
+1. In Garmin Connect (Web) unter **Einstellungen → Personal API Key**
+   ([direkt](https://connect.garmin.com/app/settings/personalApiToken)) **Create Key** wählen,
+   Nutzungsbedingungen bestätigen und eine Laufzeit wählen (30 Tage bis 1 Jahr). Den Schlüssel
+   sofort kopieren – Garmin zeigt ihn nur einmal an.
+2. In Home Assistant unter **Einstellungen → Add-ons → my Velo → Konfiguration** als
+   `garmin_api_key` eintragen, speichern und das Add-on neu starten.
+3. Etwa zwei Minuten nach dem Start läuft der erste Abgleich ab `garmin_sync_since`
+   (Standard 01.01.2026), danach alle `garmin_sync_interval_hours` Stunden (Standard 2).
+   Im Panel unter **Garmin** startet **Jetzt synchronisieren** ihn sofort.
 
 Was dabei passiert:
 
 - Neue Aktivitäten werden als **Original-FIT-Datei** geladen und wie ein Upload importiert. Schon
-  vorhandene Aufzeichnungen (z. B. vorher hochgeladen) werden erkannt und nur mit Garmin verknüpft.
+  vorhandene Aufzeichnungen (z. B. aus dem Garmin-Export) werden erkannt und nur mit Garmin
+  verknüpft – es entstehen keine Duplikate.
 - Jeder Lauf prüft die letzten 7 Tage erneut. **Namen** aus Garmin Connect werden übernommen und
   folgen späteren Umbenennungen dort – außer du hast die Aktivität in my Velo umbenannt.
-- Zwischen zwei Downloads wartet my Velo eine Sekunde, um die Schnittstelle zu schonen. Der erste
-  Abgleich mit vielen Aktivitäten dauert deshalb einige Minuten.
-- Das **Passwort** wird nicht gespeichert, nur Zugangstokens in `/data/garmin` (Teil der Backups).
-  **Abmelden** löscht die Tokens.
-- Läuft die Anmeldung ab (Exit `auth_required`), erscheint einmalig eine **Benachrichtigung in
-  Home Assistant**; nach erneuter Anmeldung verschwindet sie.
-
-Hinweis: my Velo nutzt die **inoffizielle** Schnittstelle von Garmin Connect (über
-python-garminconnect). Garmin kann sie ändern; dann hilft meist ein Update von my Velo. Der
-Datei-Import funktioniert unabhängig davon.
+- **Ablauf des Schlüssels:** Garmin schickt etwa eine Woche vorher eine E-Mail. Wird ein
+  abgelaufener oder gelöschter Schlüssel abgelehnt, erscheint einmalig eine **Benachrichtigung in
+  Home Assistant**; nach dem nächsten erfolgreichen Abgleich verschwindet sie. Dann einfach einen
+  neuen Schlüssel erzeugen und in der Konfiguration ersetzen.
+- Der Datei-Import funktioniert unabhängig vom Abgleich.
 
 ## Übersicht und Statistik
 
+- **Sportarten:** Rad, Indoor-Rad (Rolle, virtuelle Fahrten), Laufen, Wandern & Gehen, Fitness
+  (Crosstrainer, Kraft, Yoga, Rudergerät) und Sonstige. Ziele, Summen und Eddington gelten je
+  Sportart; Indoor-Fahrten zählen also nicht zum Rad-Ziel.
 - Die **Übersicht** zeigt Woche, Monat und Jahr bis heute für die gewählte Sportart; „Vorjahr“
   vergleicht mit denselben Kalendertagen des Vorjahres.
 - Unter **Statistik** gibt es Balken pro Monat oder Kalenderwoche (ISO, Woche beginnt Montag), den
   kumulierten Jahresvergleich und die Tabelle aller Jahre.
+- **Eddington-Zahl:** größte Zahl E, für die du an E Tagen jeweils mindestens E km geschafft
+  hast (alle Aktivitäten eines Tages zusammen, nur volle km). Angezeigt gesamt und für das gewählte
+  Jahr, dazu wie viele Tage für E+1 noch fehlen.
 - **Jahresziel:** unten auf der Statistikseite je Sportart in km eintragen. Der Strich im
   Fortschrittsbalken markiert das Soll für heute; die Hochrechnung setzt das bisherige Tempo fort.
 - Aktivitäten zählen zu dem Tag, an dem sie nach Ortszeit des Geräts begonnen haben. „Heute“ folgt
@@ -124,6 +132,7 @@ bleiben sichtbar.
 |---|---|---|
 | `log_level` | `info` | `debug`, `info`, `warning` oder `error` |
 | `map_provider` | `osm` | `osm` (ohne Key) oder `maptiler` (Satellit, Key nötig) |
+| `garmin_api_key` | leer | Schlüssel der Garmin Connect Personal API; leer schaltet den Abgleich ab |
 | `garmin_sync_interval_hours` | `2` | Abstand des automatischen Garmin-Abgleichs in Stunden, `0` schaltet ihn ab |
 | `garmin_sync_since` | `2026-01-01` | erster Tag, ab dem der erste Abgleich Aktivitäten lädt (JJJJ-MM-TT) |
 | `maptiler_key` | leer | kostenloser Key aus [cloud.maptiler.com](https://cloud.maptiler.com); er wird an den Browser übergeben, weil dieser die Kacheln lädt |
@@ -133,8 +142,6 @@ bleiben sichtbar.
 - Alle Daten liegen im Add-on-Verzeichnis `/data` und sind Teil der Home-Assistant-Backups:
   - `myvelo.db` – Datenbank mit Aktivitäten, Messreihen und Tracks
   - `raw/` – Archiv aller importierten Originaldateien (Grundlage für spätere Neuberechnungen)
-  - `garmin/` – Zugangstokens für Garmin Connect (der Download-Zwischenordner `garmin/inbox` ist
-    vom Backup ausgenommen)
 - Für ein konsistentes Backup der Datenbank stoppt Home Assistant das Add-on während des Backups
   kurz (`backup: cold`).
 

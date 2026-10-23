@@ -6,10 +6,10 @@ my Velo zeigt einzelne Aktivitäten mit Karte, die Historie mit Statistiken und 
 Heatmap, ohne Abo und ohne zusätzliche Cloud-Plattform. Die Daten stammen aus den Original-FIT-Dateien
 der Garmin-Geräte und bleiben lokal auf der Home-Assistant-Instanz.
 
-> **Status: Phase 1 (MVP) fast abgeschlossen – Version 0.5.0.** Aktivitäten kommen automatisch
-> aus Garmin Connect oder per Upload/Garmin-Export, lassen sich filtern, mit Karte und Diagrammen
-> ansehen, statistisch auswerten (Dashboard, Jahresziele) und als persönliche Heatmap darstellen.
->
+> **Status: Version 0.6.0 – MVP vollständig, Phase 2 (Analysen) begonnen.** Aktivitäten kommen
+> automatisch über die offizielle Garmin Connect Personal API oder per Upload/Garmin-Export,
+> lassen sich filtern, mit Karte und Diagrammen ansehen, statistisch auswerten (Dashboard,
+> Jahresziele, Eddington) und als persönliche Heatmap darstellen.
 > - **Weitermachen:** [docs/next-steps.md](docs/next-steps.md) – Arbeitsstand, offene Prüfungen, Phase-1-Zuschnitt
 > - **Plan und Entscheidungen:** [docs/plan.md](docs/plan.md)
 > - **Spike-Ergebnisse:** [docs/spikes](docs/spikes/README.md)
@@ -27,7 +27,7 @@ der Garmin-Geräte und bleiben lokal auf der Home-Assistant-Instanz.
 ```mermaid
 flowchart LR
     DEV[Garmin-Geräte] --> GC[Garmin Connect]
-    GC -- "garmin-fetch (Python)" --> INBOX[(FIT-Inbox)]
+    GC -- "Personal API (offiziell)" --> INBOX[(FIT)]
     UP[Garmin-Export / FIT-Upload] --> INBOX
     INBOX --> CORE["my Velo Core (Go)<br/>Import, Analyse, SQLite"]
     CORE -- Ingress --> HA[Home-Assistant-Seitenleiste]
@@ -42,13 +42,12 @@ Details stehen in [docs/architecture.md](docs/architecture.md).
 | [`cmd/myvelo`](cmd/myvelo) | Einstiegspunkt des Go-Servers (Ingress-Panel) |
 | [`cmd/fitinspect`](cmd/fitinspect) | Werkzeug zum Prüfen von FIT-Dateien und Garmin-Exporten |
 | [`internal/`](internal) | Go-Pakete: `web` (Panel, Templates, Browser-Module), `store` (SQLite), `importer`, `fitfile`, `geo`, `sport`, `garmin` (Sync), `ha` (Benachrichtigungen), `config` |
-| [`garmin-fetch/`](garmin-fetch) | Python-Fetcher für Garmin Connect |
 | [`my_velo/`](my_velo) | Home-Assistant-Add-on-Definition |
 | [`docs/`](docs) | Plan, Architektur, nächste Schritte, Spike-Ergebnisse, Release-Prozess |
 
 ## Entwicklung
 
-Voraussetzungen: Go ≥ 1.26, Python ≥ 3.12, Docker (für das Add-on-Image).
+Voraussetzungen: Go ≥ 1.26, Node ≥ 22 (Tests der Browser-Module), Docker (für das Add-on-Image).
 
 ```bash
 go test ./...                       # Go-Tests
@@ -56,7 +55,6 @@ go run ./cmd/myvelo -dev -data ./data -import-dir ./data/import   # Panel auf ht
 go run ./cmd/fitinspect <datei|ordner|zip>   # FIT-Dateien analysieren
 ```
 
-Für den Python-Fetcher siehe [garmin-fetch/README.md](garmin-fetch/README.md).
 
 ## Installation in Home Assistant
 
@@ -64,8 +62,8 @@ Siehe [my_velo/DOCS.md](my_velo/DOCS.md).
 
 ## Hinweise
 
-- my Velo nutzt für den automatischen Abgleich die **inoffizielle** Garmin-Connect-Schnittstelle
-  über [python-garminconnect](https://github.com/cyberjunky/python-garminconnect). Garmin kann
-  diese jederzeit ändern. Der Datei-Import funktioniert unabhängig davon.
+- my Velo nutzt für den automatischen Abgleich die offizielle
+  [Garmin Connect Personal API](https://developer.garmin.com/gc-developer-program/personal/personal-faq/)
+  mit einem persönlichen API-Schlüssel. Der Datei-Import funktioniert unabhängig davon.
 - Garmin, fēnix und Edge sind Marken von Garmin Ltd. Dieses Projekt steht in keiner Verbindung zu
   Garmin.

@@ -9,10 +9,10 @@ stehen in [plan.md](plan.md), die Spikes in [spikes/](spikes/README.md) prüfen 
 ```mermaid
 flowchart LR
     G[fēnix / Edge] --> GC[Garmin Connect]
-    GC -- "inoffiziell, Polling" --> PYF
+    GC -- "Personal API, Polling" --> SYNC
     EX[Garmin-Export / FIT-Upload] --> ING
     subgraph Addon["Home-Assistant-Add-on my Velo"]
-      PYF["garmin-fetch (Python)"] -- "Original-FIT" --> ING
+      SYNC["garmin.Syncer (Go)"] -- "Original-FIT" --> ING
       ING[Import] --> PIPE[Analyse-Pipeline]
       PIPE --> DB[(SQLite)]
       PIPE --> RAW[(FIT-Archiv)]
@@ -27,10 +27,9 @@ flowchart LR
 
 | Thema | Entscheidung | Begründung |
 |---|---|---|
-| Datenquelle | Original-FIT-Dateien: automatisch aus Garmin Connect oder per Upload/Export | vollständige Daten inkl. Garmin-Feldern, keine weitere Plattform, kein Abo (die Strava-API setzt ein Abo voraus) |
+| Datenquelle | Original-FIT-Dateien: automatisch über die Garmin Connect Personal API oder per Upload/Export | vollständige Daten inkl. Garmin-Feldern, keine weitere Plattform, kein Abo (die Strava-API setzt ein Abo voraus) |
 | Sprache Kern | Go | gute Bibliotheken für FIT ([muktihari/fit](https://github.com/muktihari/fit)), Geometrie und SQLite ohne CGO; ein statisches Binary |
-| Garmin-Zugriff | Python-CLI `garmin-fetch` mit [python-garminconnect](https://github.com/cyberjunky/python-garminconnect) | einzige gepflegte Implementierung des aktuellen Garmin-Logins; ein Go-Port wäre bei jeder Garmin-Änderung kaputt |
-| Kopplung Go ↔ Python | Prozessaufruf, JSON Lines über stdout, Eingaben über stdin | kein zweiter dauerhaft laufender Dienst, keine Zugangsdaten in Argumenten |
+| Garmin-Zugriff | offizielle [Garmin Connect Personal API](https://developer.garmin.com/gc-developer-program/personal/personal-faq/) mit persönlichem API-Schlüssel, Client in Go ([internal/garmin](../internal/garmin)) | stabil und vorgesehen; kein Passwort/MFA, kein Python (bis 0.5.x: inoffizieller Python-Fetcher, siehe [S1](spikes/s1-garmin-fetch.md), abgelöst durch [S4](spikes/s4-personal-api.md)) |
 | Speicherung | SQLite und FIT-Archiv unter `/data` | Teil der Home-Assistant-Backups |
 | UI-Einbindung | Home-Assistant-Ingress (Seitenleiste) | Authentifizierung durch Home Assistant, kein offener Port |
 | Frontend | Go-Templates, htmx, MapLibre GL JS, uPlot, ohne Node-Build | einfache Toolchain |
@@ -82,27 +81,29 @@ flowchart LR
 Die Originaldateien unter `raw/` sind die Quelle der Wahrheit: Ändert sich die Auswertung, wird
 `importer.AnalysisVersion` erhöht und neu abgeleitet, ohne die Dateien erneut zu beschaffen.
 
-## Garmin-Sync (ab 0.5.0)
+## Garmin-Sync (ab 0.6.0: Personal API)
 
 ```mermaid
 sequenceDiagram
     participant UI as Panel / Zeitplan
-    participant S as garmin.Service
-    participant F as garmin-fetch (Python)
-    participant GC as Garmin Connect
+    participant S as garmin.Service / Syncer
+    participant C as garmin.Client
+    participant GC as Personal API
     participant I as Importer/Store
     UI->>S: SyncNow (Job, max. einer gleichzeitig)
-    S->>F: sync --since (letzter Erfolg − 7 Tage) --known-ids
-    F->>GC: Aktivitätsliste, Original-FIT für unbekannte IDs
-    F-->>S: JSON Lines: activity downloaded / known / no_file, done
-    S->>I: ImportReader(FIT) → AttachSource("garmin", id, Titel)
-    S->>I: SetSourceTitle für bekannte (Umbenennungen)
-    S-->>UI: State in setting garmin.last_state; Exit 2 → HA-Benachrichtigung
+    S->>C: Activities(since = letzter Erfolg − 7 Tage)
+    C->>GC: POST token (ApiKey) → JWT 24 h (gecacht)
+    C->>GC: GET activitylist-service/… (seitenweise)
+    loop unbekannte IDs, älteste zuerst
+      C->>GC: GET download-service/files/activity/{id} → ZIP
+      S->>I: ImportReader(FIT) → AttachSource("garmin", id, Titel)
+    end
+    S->>I: SetSourceTitle für bekannte IDs (Umbenennungen)
+    S-->>UI: State in setting garmin.last_state; 401/403 → HA-Benachrichtigung
 ```
 
-- Der **Login** läuft in *einem* `garmin-fetch`-Prozess, der bis zur Eingabe des MFA-Codes wartet
-  (Garmin hält den MFA-Zustand nur im Speicher). Abgebrochene Logins enden nach 5 Minuten.
-- Die Kopplung Go ↔ Python ist ein Prozessaufruf pro Vorgang; Fehlerklassen kommen als Exit-Code
-  (siehe [garmin-fetch/README.md](../garmin-fetch/README.md#exit-codes)).
+- **Token:** reiner Text (JWT) aus dem Token-Endpunkt, Ablauf aus dem `exp`-Claim; Erneuerung eine
+  Stunde vorher bzw. einmal nach einem 401. Der Schlüssel kommt aus der Add-on-Option
+  `garmin_api_key` und wird nie geloggt.
 - **Namen:** `activity_source.title` merkt sich den letzten Garmin-Titel. Der Name der Aktivität
   folgt ihm nur, solange er leer ist oder noch diesem Titel entspricht.

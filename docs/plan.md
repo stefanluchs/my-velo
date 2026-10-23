@@ -266,7 +266,7 @@ FIT-Fixtures; ein HTTP-Smoke-Test gegen den Ingress-Basispfad.
 
 | # | Frage | Entscheidung (22.10.2026) |
 |---|---|---|
-| E1 | Primärquelle | ✅ FIT-Import als Basis + inoffizieller Garmin-Connect-Sync (Python-Fetcher); keine weitere Plattform; Strava verworfen (Abo-Pflicht für API), intervals.icu verworfen (zusätzliche Plattform) |
+| E1 | Primärquelle | ✅ FIT-Import als Basis + Garmin-Connect-Sync (bis 0.5.x inoffiziell per Python-Fetcher, seit 0.6.0 Personal API, siehe E7); keine weitere Plattform; Strava verworfen (Abo-Pflicht für API), intervals.icu verworfen (zusätzliche Plattform) |
 | E2 | Wo liegt der Code? | ✅ eigenes öffentliches GitHub-Repo `my-velo` als Add-on-Repository, Images über CI in GHCR (5.2) |
 | E3 | Frontend-Stack | ✅ Go-Templates + htmx + MapLibre/uPlot als ES-Module, ohne Node-Build |
 | E4 | Satellitenkarte | ✅ MapTiler als Standard (Key als Add-on-Option); optionaler Layer „Luftbild Bayern“ (DOP40, 6.1) |

@@ -10,7 +10,8 @@ Den Gesamtplan mit Anforderungen, Entscheidungen und Begründungen enthält [pla
 |---|---|
 | Evaluierung und Entscheidungen E1–E6 | ✅ abgeschlossen ([plan.md §9](plan.md#9-entscheidungen)) |
 | Phase 0 – Spikes | ✅ abgeschlossen am 23.10.2026 ([spikes/](spikes/README.md)) |
-| Phase 1 – MVP | 🟡 1.1–1.8 ✅ (Release `v0.5.0`, Export mit 808 Aktivitäten importiert); 1.9 zurückgestellt (keine Doppelaufzeichnungen); offen: Live-Abnahme des Garmin-Syncs auf dem Pi |
+| Phase 1 – MVP | 🟡 1.1–1.8 ✅, Sync seit `v0.6.0` über die Personal API (E7); 1.9 zurückgestellt (keine Doppelaufzeichnungen); offen: Abnahme des Syncs auf dem Pi |
+| Phase 2 – Analysen | 🟡 begonnen: Kategorien Indoor-Rad/Fitness und Eddington-Zahl ✅ (`v0.6.0`); als Nächstes Explorer-Tiles, Bestleistungen, HF-Zonen |
 
 Vorhanden im Repository:
 
@@ -21,7 +22,8 @@ Vorhanden im Repository:
   [internal/geo](../internal/geo))
 - FIT-Parser mit Identitätsschlüssel, Streams und Export-Scanner ([internal/fitfile](../internal/fitfile)),
   Werkzeug [cmd/fitinspect](../cmd/fitinspect), Test-Fixtures [internal/fittest](../internal/fittest)
-- Garmin-Fetcher ([garmin-fetch](../garmin-fetch)) mit JSON-Lines-Protokoll
+- Garmin-Sync über die Personal API ([internal/garmin](../internal/garmin)), HA-Benachrichtigungen ([internal/ha](../internal/ha))
+- Analysen ([internal/analysis](../internal/analysis)): Eddington-Zahl; Sportkategorien mit Go/SQL-Regeln ([internal/sport](../internal/sport))
 - Add-on-Definition ([my_velo](../my_velo)), Dockerfile (amd64/aarch64 ohne QEMU), CI und Release-Workflow
 
 ## Schritt 1 – Phase 0 abschließen (manuell, braucht echte Daten)
@@ -53,7 +55,7 @@ für sich lauffähig, getestet und releasebar ist.
 | 1.5 ✅ | Aktivitätsdetail | MapLibre-Karte, Höhenprofil, uPlot-Charts (Tempo, HF, Leistung, Trittfrequenz) | 1.4 |
 | 1.6 ✅ | Statistik | Summen pro Woche/Monat/Jahr (Distanz, Höhenmeter, Zeit) | 1.2 |
 | 1.7 ✅ | Heatmap | alle Tracks als Linien-Layer, Filter Typ/Zeitraum; Kartenanbieter OSM/MapTiler, Overlay Luftbild Bayern ([plan.md §6.1](plan.md#61-kartenanbieter-satellit--vergleich)) | 1.5 |
-| 1.8 ✅ | Garmin-Sync | Go ruft `garmin-fetch` auf: Login-Dialog im Panel (inkl. MFA über stdin), Polling alle 2 h, Knopf „Jetzt synchronisieren“, Statusanzeige; Exit-Codes gemäß [garmin-fetch/README.md](../garmin-fetch/README.md#exit-codes) | 1.3, S1 |
+| 1.8 ✅ | Garmin-Sync | seit 0.6.0 über die Personal API ([S4](spikes/s4-personal-api.md)): Schlüssel als Add-on-Option, Polling alle 2 h, Knopf „Jetzt synchronisieren“, Statusanzeige, HA-Benachrichtigung bei abgelehntem Schlüssel | 1.3, S4 |
 | 1.9 ⏸ | Doppelaufzeichnungen (zurückgestellt: im Export keine parallelen Aufzeichnungen) | fēnix + Edge zur selben Fahrt zu einer Aktivität zusammenführen (Überlappung, Gerätepriorität Edge > fēnix) | 1.2, S2 |
 
 ### Umsetzungsstand und Hinweise für die nächsten Inkremente
@@ -69,7 +71,16 @@ für sich lauffähig, getestet und releasebar ist.
   (GeoJSON, Property `t` = lokale Startzeit als Unix-Sekunden) und filtert im Browser
   (`static/heatmap-data.js`, Node-getestet). Bei sehr vielen Aktivitäten (> 2.000) wären
   serverseitige Vektor-/Raster-Kacheln der nächste Schritt; mit ca. 100 Fahrten pro Jahr unnötig.
-- **1.8 erledigt** (Release `v0.5.0`), aber **noch nicht live gegen Garmin geprüft** (Tests mit
+- **v0.6.0 (23.10.2026):** Sync über die **Personal API** (S4/E7): `garmin.Client` tauscht den
+  Schlüssel aus `garmin_api_key` gegen ein 24-h-Token (Text-JWT, Cache im Speicher), listet
+  seitenweise und lädt Original-FIT-ZIPs; 401/403 → `ErrAuthRequired` → einmalige HA-Benachrichtigung.
+  `garmin-fetch`/Python entfernt (Image 27,5 MB). Kategorien sind Regeln aus Sportart + Unterart,
+  `sport.Condition` erzeugt das passende SQL (Test prüft Gleichheit mit `CategoryOf`).
+  Eddington in `internal/analysis`.
+- **Abnahme v0.6.0 auf dem Pi:** Schlüssel als `garmin_api_key` eintragen, Add-on neu starten,
+  nach ~2 min Panel → Garmin: erster Abgleich erfolgreich, die Fahrten ab 01.01.2026 „bekannt“ bzw.
+  verknüpft, Namen aus Garmin. Log: `removed legacy garmin tokens`, `garmin sync finished`.
+- **Historisch, 1.8 (v0.5.x):** (Release `v0.5.0`), aber **noch nicht live gegen Garmin geprüft** (Tests mit
   gefälschtem `garmin-fetch`; die echten Tokens von S1 wurden bewusst nicht benutzt, um den
   24-h-Test der Token-Erneuerung nicht zu verfälschen). Aufbau: `internal/garmin` (`Runner` =
   Prozessaufruf/Exit-Codes, `Session` = Login mit MFA im selben Prozess, `Syncer` = Download →
@@ -137,7 +148,7 @@ Eintrag in [my_velo/CHANGELOG.md](../my_velo/CHANGELOG.md), Release über Tag.
 
 ```bash
 go test ./...                                            # Go ≥ 1.26
-(cd garmin-fetch && PYTHONPATH=src python3 -m unittest discover -s tests)
+MYVELO_GARMIN_KEY_FILE=~/.config/garmin-personal-api-key go test -run TestLiveAPI -v ./internal/garmin  # optional, live, nur lesend
 node --test internal/web/jstest/*.test.mjs                # Browser-Module
 go run ./cmd/myvelo -dev -data ./data -import-dir ./data/import   # http://localhost:8099
 docker build -t my-velo .                                # Add-on-Image lokal
