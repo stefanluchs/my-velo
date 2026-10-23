@@ -11,6 +11,7 @@ Zurück zum [[index]].
 ## Frontend-Assets und Tests
 - [[vendor-bibliotheken-versioniert]] — unverändert, versioniert, `immutable`; MapLibre-Fallen
 - [[dom-freie-browserlogik-mit-node-test]] — reine Module, `node --test …/*.test.mjs`
+- [[uplot-farben-aus-theme-tokens]] — Canvas ignoriert `color-scheme`; Achsen/Gitter aus Tokens
 
 ## Go, Daten und Tests
 - [[fit-ungueltige-werte-als-null]] — Sentinels/`NaN` → „nicht aufgezeichnet“, nicht 0

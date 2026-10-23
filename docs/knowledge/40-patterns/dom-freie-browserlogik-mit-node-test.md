@@ -46,3 +46,4 @@ macht die Logik trotzdem testbar.
 - [[moc-patterns]]
 - [[heatmap-clientseitig-gefiltert]]
 - [[frontend-ohne-node-build]]
+- [[uplot-farben-aus-theme-tokens]]
