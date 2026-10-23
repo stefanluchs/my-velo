@@ -110,7 +110,7 @@ func TestStatsPage(t *testing.T) {
 			t.Fatalf("%s: status %d", unit, w.Code)
 		}
 		body := w.Body.String()
-		for _, want := range []string{"bis heute", "Jahresziel 1000 km", `<option value="2026" selected>`, `from "./static/stats.js?v=`} {
+		for _, want := range []string{"bis heute", "Jahresziel 1000 km", "Eddington-Zahl", "Für 1: noch 1 Tag\n      mit mindestens 1 km (0 von 1 geschafft)", `<option value="2026" selected>`, `from "./static/stats.js?v=`} {
 			if !strings.Contains(body, want) {
 				t.Errorf("%s: missing %q", unit, want)
 			}

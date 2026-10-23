@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/stefanluchs/my-velo/internal/analysis"
 	"github.com/stefanluchs/my-velo/internal/sport"
 	"github.com/stefanluchs/my-velo/internal/store"
 )
@@ -105,8 +106,11 @@ type statsData struct {
 	Summary    PeriodSummary
 	Goal       *GoalProgress
 	ByYear     []store.Bucket
-	MaxGoal    int
-	Charts     template.JS
+	// Eddington numbers over all time and within the selected year.
+	EddingtonAll  analysis.Eddington
+	EddingtonYear analysis.Eddington
+	MaxGoal       int
+	Charts        template.JS
 }
 
 // chartData is passed to static/stats.js.
@@ -168,6 +172,14 @@ func (s *server) stats(w http.ResponseWriter, r *http.Request) {
 	}
 	if d.Goal, err = s.goalProgress(ctx, cat.ID, year, today); err != nil {
 		s.serverError(w, "goal", err)
+		return
+	}
+	if d.EddingtonAll, err = s.eddington(ctx, base); err != nil {
+		s.serverError(w, "eddington", err)
+		return
+	}
+	if d.EddingtonYear, err = s.eddington(ctx, withRange(base, yearStart(year), yearStart(year+1))); err != nil {
+		s.serverError(w, "eddington", err)
 		return
 	}
 	if d.ByYear, err = s.Store.Aggregate(ctx, base, store.ByYear); err != nil {
@@ -271,6 +283,18 @@ func (s *server) cumulativeYears(ctx context.Context, base store.ListFilter, yea
 		out = append(out, line)
 	}
 	return out, nil
+}
+
+func (s *server) eddington(ctx context.Context, f store.ListFilter) (analysis.Eddington, error) {
+	days, err := s.Store.DailyDistance(ctx, f)
+	if err != nil {
+		return analysis.Eddington{}, err
+	}
+	km := make([]float64, len(days))
+	for i, d := range days {
+		km[i] = d.DistanceM / 1000
+	}
+	return analysis.ComputeEddington(km), nil
 }
 
 func round1(v float64) float64 { return math.Round(v*10) / 10 }

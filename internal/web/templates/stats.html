@@ -26,6 +26,13 @@
 <div class="period-grid">
   {{template "periodCard" .Summary}}
   {{with .Goal}}{{template "goalBar" .}}{{end}}
+  <section class="card eddington" title="Größte Zahl E, für die an E Tagen jeweils mindestens E km zurückgelegt wurden">
+    <h2>Eddington-Zahl</h2>
+    <p class="big"><strong>{{.EddingtonAll.E}}</strong> <span class="hint">gesamt</span>
+      · <strong>{{.EddingtonYear.E}}</strong> <span class="hint">{{.Year}}</span></p>
+    <p class="compare">Für {{.EddingtonAll.Next}}: noch {{.EddingtonAll.Missing}} Tag{{if ne .EddingtonAll.Missing 1}}e{{end}}
+      mit mindestens {{.EddingtonAll.Next}} km ({{.EddingtonAll.DaysAtNext}} von {{.EddingtonAll.Next}} geschafft)</p>
+  </section>
 </div>
 
 <section class="card">
