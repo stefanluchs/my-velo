@@ -44,6 +44,7 @@ Details stehen in [docs/architecture.md](docs/architecture.md).
 | [`internal/`](internal) | Go-Pakete: `web` (Panel, Templates, Browser-Module), `store` (SQLite), `importer`, `fitfile`, `geo`, `sport`, `garmin` (Sync), `ha` (Benachrichtigungen), `config` |
 | [`my_velo/`](my_velo) | Home-Assistant-Add-on-Definition |
 | [`docs/`](docs) | Plan, Architektur, nächste Schritte, Spike-Ergebnisse, Release-Prozess |
+| [`docs/knowledge/`](docs/knowledge/00-index/index.md) | Wissensspeicher (Obsidian-kompatibel): Domänenregeln, Grenzen, Entscheidungen, Muster, Glossar |
 
 ## Entwicklung
 

@@ -3,6 +3,8 @@
 
 Stand: 22.10.2026 · Dieses Dokument ist der Einstiegspunkt, um die Arbeit später fortzusetzen.
 Den Gesamtplan mit Anforderungen, Entscheidungen und Begründungen enthält [plan.md](plan.md).
+Verdichtetes, verlinktes Wissen (Regeln, Fallstricke, Entscheidungsgeschichte) liegt im
+Wissensspeicher [knowledge/](knowledge/00-index/index.md) – vor größeren Änderungen dort einsteigen.
 
 ## Wo stehen wir?
 

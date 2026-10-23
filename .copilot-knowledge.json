@@ -1,0 +1,44 @@
+{
+  "$schema": "https://local/copilot-knowledge.schema.json",
+  "version": 1,
+  "vaultMode": "repo",
+  "vaultPath": "docs/knowledge",
+  "vaultId": "my-velo",
+  "language": "de",
+  "noteTypes": [
+    "domain",
+    "architecture",
+    "decision",
+    "pattern",
+    "glossary"
+  ],
+  "capture": {
+    "mode": "auto",
+    "confirmBeforeWrite": false
+  },
+  "readBudget": {
+    "maxNotes": 12
+  },
+  "repoDocs": {
+    "readme": "README.md",
+    "architecture": "docs/architecture.md",
+    "adr": "docs/plan.md",
+    "plan": "docs/plan.md",
+    "nextSteps": "docs/next-steps.md",
+    "release": "docs/release.md",
+    "spikes": "docs/spikes",
+    "addonDocs": "my_velo/DOCS.md",
+    "changelog": "my_velo/CHANGELOG.md",
+    "vendor": "internal/web/static/vendor/README.md"
+  },
+  "exclude": [
+    "credentials",
+    "secrets",
+    "personal data",
+    "e-mail addresses",
+    "Garmin activity IDs",
+    "device serial numbers",
+    "API keys and tokens",
+    "GPS locations and place names"
+  ]
+}
