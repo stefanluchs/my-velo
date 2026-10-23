@@ -40,8 +40,8 @@ Hinweise:
 - Jede Aufzeichnung wird über die Gerätekennung in der FIT-Datei erkannt (Hersteller,
   Seriennummer, Aufzeichnungszeit). Ein Import kann deshalb **beliebig oft wiederholt** werden,
   ohne Duplikate zu erzeugen. Dieselbe Fahrt aus Upload, Export oder USB-Kopie ist eine Aktivität.
-- Dateien, die keine Aktivitäten sind (z. B. Geräteeinstellungen im Garmin-Export), werden als
-  Fehler aufgeführt und übersprungen.
+- Der Garmin-Export enthält sehr viele Dateien ohne Aktivität (Tagesmonitoring, Schlaf,
+  Einstellungen – rund 40 je Aktivität). Sie werden als „keine Aktivität“ gezählt und übersprungen.
 - Die Dateien im Import-Ordner bleiben liegen; nach erfolgreichem Import können sie gelöscht werden.
 
 ### Umstellung von älteren Installationen

@@ -3,7 +3,7 @@
 # Add-on manifest, see https://developers.home-assistant.io/docs/add-ons/configuration
 # The version must match the Git tag (vX.Y.Z) that built the image; CI checks this.
 name: my Velo
-version: "0.5.0"
+version: "0.5.1"
 slug: my_velo
 description: Rad- und Sportaktivitäten mit Karte, Statistik und Heatmap – lokal aus Garmin-FIT-Dateien
 url: https://github.com/stefanluchs/my-velo

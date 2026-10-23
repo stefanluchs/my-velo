@@ -9,8 +9,8 @@ Den Gesamtplan mit Anforderungen, Entscheidungen und Begründungen enthält [pla
 | Phase | Status |
 |---|---|
 | Evaluierung und Entscheidungen E1–E6 | ✅ abgeschlossen ([plan.md §9](plan.md#9-entscheidungen)) |
-| Phase 0 – Spikes | ✅ technisch erledigt, 🟡 Prüfungen mit echten Daten offen ([spikes/](spikes/README.md)) |
-| Phase 1 – MVP | 🟡 in Arbeit: 1.1–1.8 ✅ (Release `v0.5.0`); offen **1.9 Doppelaufzeichnungen** (wartet auf S2) und Live-Abnahme des Garmin-Syncs auf dem Pi |
+| Phase 0 – Spikes | ✅ abgeschlossen bis auf den 24-h-Test der Token-Erneuerung ([spikes/](spikes/README.md)) |
+| Phase 1 – MVP | 🟡 1.1–1.8 ✅ (Release `v0.5.0`, Export mit 808 Aktivitäten importiert); 1.9 zurückgestellt (keine Doppelaufzeichnungen); offen: Live-Abnahme des Garmin-Syncs auf dem Pi |
 
 Vorhanden im Repository:
 
@@ -33,9 +33,8 @@ unter „Ergebnisse“ ergänzen.
 - [x] **S1 Live-Test** – ✅ Login und Sync von 13 Aktivitäten am 22.10.2026 ([Ergebnisse](spikes/s1-garmin-fetch.md#ergebnisse))
   - [ ] Token-Erneuerung: frühestens am 23.10.2026 `garmin-fetch status --tokenstore ~/.myvelo-garmin`
     ausführen; `exit=0` bestätigt den Dauerbetrieb ohne erneute Anmeldung.
-- [ ] **S2 mit eigenem Export** – Export am 22.10.2026 angefordert, in Bearbeitung. Nach Erhalt
-  `go run ./cmd/fitinspect <export>.zip`. Klären: Aktivitäts-ID im Dateinamen? `key_source = file_id`
-  für fēnix 7 und Edge 550? Gleicher Schlüssel wie beim Download über `garmin-fetch`?
+- [x] **S2 mit eigenem Export** – ✅ 23.10.2026: 808 Aktivitäten, alle mit FIT-Schlüssel, keine
+  Doppelaufzeichnungen; Export und Sync liefern denselben Schlüssel ([Ergebnisse](spikes/s2-fit-parsing.md#ergebnisse-mit-dem-eigenen-garmin-export-23102026)).
 
 **Entscheidungspunkt:** Scheitert der S1-Live-Test dauerhaft (Garmin blockiert den Login), bleibt
 der Datei-Import die einzige Quelle; Plan B siehe [plan.md §4](plan.md#4-lösungsoptionen--bewertung).
@@ -56,7 +55,7 @@ für sich lauffähig, getestet und releasebar ist.
 | 1.6 ✅ | Statistik | Summen pro Woche/Monat/Jahr (Distanz, Höhenmeter, Zeit) | 1.2 |
 | 1.7 ✅ | Heatmap | alle Tracks als Linien-Layer, Filter Typ/Zeitraum; Kartenanbieter OSM/MapTiler, Overlay Luftbild Bayern ([plan.md §6.1](plan.md#61-kartenanbieter-satellit--vergleich)) | 1.5 |
 | 1.8 ✅ | Garmin-Sync | Go ruft `garmin-fetch` auf: Login-Dialog im Panel (inkl. MFA über stdin), Polling alle 2 h, Knopf „Jetzt synchronisieren“, Statusanzeige; Exit-Codes gemäß [garmin-fetch/README.md](../garmin-fetch/README.md#exit-codes) | 1.3, S1 |
-| 1.9 | Doppelaufzeichnungen | fēnix + Edge zur selben Fahrt zu einer Aktivität zusammenführen (Überlappung, Gerätepriorität Edge > fēnix) | 1.2, S2 |
+| 1.9 ⏸ | Doppelaufzeichnungen (zurückgestellt: im Export keine parallelen Aufzeichnungen) | fēnix + Edge zur selben Fahrt zu einer Aktivität zusammenführen (Überlappung, Gerätepriorität Edge > fēnix) | 1.2, S2 |
 
 ### Umsetzungsstand und Hinweise für die nächsten Inkremente
 
