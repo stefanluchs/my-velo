@@ -10,6 +10,7 @@ Punkte.
 | [S1 – Garmin-Fetcher](s1-garmin-fetch.md) | Lassen sich neue Aktivitäten als Original-FIT ohne Drittplattform automatisch abholen, inkl. MFA? | ✅ abgeschlossen (Login, Sync, Tokens nach 22½ h gültig) |
 | [S2 – FIT-Parsing](s2-fit-parsing.md) | Liefert `muktihari/fit` alle Daten und einen stabilen Schlüssel für idempotente Importe? | ✅ abgeschlossen (eigener Export: 808 Aktivitäten, keine Duplikate) |
 | [S3 – Ingress-Add-on](s3-ingress-addon.md) | Läuft ein Go-Server als Add-on korrekt hinter dem Home-Assistant-Ingress? | ✅ abgeschlossen, Abnahme auf dem Pi bestanden |
+| [S4 – Personal API](s4-personal-api.md) | Ersetzt die offizielle Garmin Connect Personal API den inoffiziellen Fetcher? | ✅ bestätigt (gleiche IDs, gleiche FIT-Schlüssel) |
 
 ## Zwischenfazit Phase 0
 

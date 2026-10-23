@@ -253,7 +253,7 @@ Bedingungen das meist untersagen. Gecacht wird nur im Browser.
 
 | Phase | Inhalt | Ergebnis | Größe |
 |---|---|---|---|
-| 0 – Spikes & Entscheidungen | S1 Garmin-Fetcher (Login mit MFA, Token-Laufzeit, Aktivitätsliste, Original-FIT-Download, aarch64-Build mit `curl_cffi`); S2 Garmin-Bulk-Export anfordern, Dateinamen/`file_id` prüfen und Edge-550-FIT mit `muktihari/fit` parsen; S3 Go-„Hello World“-Add-on mit Ingress-Basispfad; S4 optional Dreeve per FIT-Import als Referenz | ✅ abgeschlossen am 23.10.2026 ([spikes/](spikes/README.md)) | S |
+| 0 – Spikes & Entscheidungen | S1 Garmin-Fetcher (Login mit MFA, Token-Laufzeit, Aktivitätsliste, Original-FIT-Download, aarch64-Build mit `curl_cffi`); S2 Garmin-Bulk-Export anfordern, Dateinamen/`file_id` prüfen und Edge-550-FIT mit `muktihari/fit` parsen; S3 Go-„Hello World“-Add-on mit Ingress-Basispfad; S4 Garmin Connect Personal API (nachträglich, ersetzt den Dreeve-Vergleich) | ✅ abgeschlossen am 23.10.2026 ([spikes/](spikes/README.md)) | S |
 | 1 – MVP | Add-on-Gerüst, SQLite-Schema, FIT-Import (Upload + Bulk), Garmin-Sync, Liste, Detail mit Karte und Charts, Wochen-/Monats-/Jahresstatistik, Heatmap mit Typ-/Zeitraumfilter, Polling | nutzbares Panel ab 2026 | M–L |
 | 2 – Analysen | Power-Curve/Bestwerte, Zonen, Jahresvergleich und Ziele, Eddington, Explorer-Tiles | Leistungs- und Fortschrittsansichten | M |
 | 3 – Kontext | Material/Verschleiß, Wetter | vollständiger Funktionsumfang | M |
@@ -272,6 +272,7 @@ FIT-Fixtures; ein HTTP-Smoke-Test gegen den Ingress-Basispfad.
 | E4 | Satellitenkarte | ✅ MapTiler als Standard (Key als Add-on-Option); optionaler Layer „Luftbild Bayern“ (DOP40, 6.1) |
 | E5 | Segmente | ✅ eigene Segmente in Phase 4 |
 | E6 | Name | ✅ „my Velo“ (Repo `my-velo`, Add-on-Slug `my_velo`) |
+| E7 | Automatischer Abgleich (23.10.2026) | ✅ offizielle **Garmin Connect Personal API** (API-Schlüssel, Go-nativ) ersetzt den inoffiziellen Python-Fetcher aus E1; gleiche Aktivitäts-IDs und Original-FIT-Dateien ([S4](spikes/s4-personal-api.md)). FIT-Import bleibt Basis |
 
 ## 10. Risiken
 
