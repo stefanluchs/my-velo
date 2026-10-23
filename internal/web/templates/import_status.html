@@ -17,6 +17,7 @@
       <li class="chip created">neu: {{.Stats.Created}}</li>
       <li class="chip updated">aktualisiert: {{.Stats.Updated}}</li>
       <li class="chip unchanged">unverändert: {{.Stats.Unchanged}}</li>
+      {{if .Stats.Skipped}}<li class="chip" title="Gültige FIT-Dateien ohne Aktivität, z. B. Tagesmonitoring, Schlaf, Einstellungen">keine Aktivität: {{.Stats.Skipped}}</li>{{end}}
       <li class="chip failed">Fehler: {{.Stats.Failed}}</li>
     </ul>
     {{if .Error}}<p class="error">Import abgebrochen: {{.Error}}</p>{{end}}

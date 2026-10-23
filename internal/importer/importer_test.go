@@ -12,6 +12,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/muktihari/fit/profile/typedef"
+
 	"github.com/stefanluchs/my-velo/internal/fittest"
 	"github.com/stefanluchs/my-velo/internal/store"
 )
@@ -105,6 +107,20 @@ func TestBrokenFileIsReportedNotFatal(t *testing.T) {
 	res := im.ImportReader(context.Background(), strings.NewReader("no fit"), "broken.fit")
 	if res.Status != StatusFailed || res.Error == "" {
 		t.Errorf("result %+v", res)
+	}
+}
+
+func TestNonActivityIsSkipped(t *testing.T) {
+	o := fittest.Default()
+	o.FileType = typedef.FileMonitoringB
+	res := newImporter(t).ImportReader(context.Background(), bytes.NewReader(fittest.Encode(t, o)), "monitoring.fit")
+	if res.Status != StatusSkipped {
+		t.Errorf("result %+v", res)
+	}
+	var s Stats
+	s.Add(res)
+	if s != (Stats{Skipped: 1}) || s.Total() != 1 {
+		t.Errorf("stats %+v", s)
 	}
 }
 

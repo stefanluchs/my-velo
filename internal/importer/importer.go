@@ -34,8 +34,14 @@ const AnalysisVersion = 1
 // StreamEncoding describes how activity streams are stored.
 const StreamEncoding = "json+gzip;v1"
 
-// StatusFailed marks a file that could not be imported.
-const StatusFailed store.SaveStatus = "failed"
+// Statuses beyond those of store.SaveRecording.
+const (
+	// StatusFailed marks a file that could not be imported.
+	StatusFailed store.SaveStatus = "failed"
+	// StatusSkipped marks a valid FIT file that is no activity (monitoring,
+	// sleep, settings …); the Garmin export contains thousands of them.
+	StatusSkipped store.SaveStatus = "skipped"
+)
 
 // Importer imports FIT files into a store.
 type Importer struct {
@@ -60,7 +66,7 @@ type Result struct {
 
 // Stats counts results by status.
 type Stats struct {
-	Created, Updated, Unchanged, Failed int
+	Created, Updated, Unchanged, Skipped, Failed int
 }
 
 // Add counts r.
@@ -72,13 +78,15 @@ func (s *Stats) Add(r Result) {
 		s.Updated++
 	case store.Unchanged:
 		s.Unchanged++
+	case StatusSkipped:
+		s.Skipped++
 	default:
 		s.Failed++
 	}
 }
 
 // Total returns the number of processed files.
-func (s Stats) Total() int { return s.Created + s.Updated + s.Unchanged + s.Failed }
+func (s Stats) Total() int { return s.Created + s.Updated + s.Unchanged + s.Skipped + s.Failed }
 
 // ImportReader imports one FIT file. Failures are reported in the result,
 // so a single broken file never aborts a bulk import.
@@ -135,6 +143,9 @@ func (im *Importer) ImportPath(ctx context.Context, root string, fn func(Result)
 
 func (r Result) fail(err error) Result {
 	r.Status, r.Error = StatusFailed, err.Error()
+	if errors.Is(err, fitfile.ErrNotActivity) {
+		r.Status = StatusSkipped
+	}
 	return r
 }
 

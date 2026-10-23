@@ -64,6 +64,11 @@ func (j *Jobs) Start(label string, fn func(ctx context.Context, report func(impo
 			j.mu.Lock()
 			defer j.mu.Unlock()
 			job.Stats.Add(r)
+			// Non-activity files are only counted: a Garmin export holds
+			// tens of thousands and would bury the relevant rows.
+			if r.Status == importer.StatusSkipped {
+				return
+			}
 			if len(job.Results) < maxJobResults {
 				job.Results = append(job.Results, r)
 			} else {
