@@ -14,7 +14,7 @@ Wissensspeicher [knowledge/](knowledge/00-index/index.md) – vor größeren Än
 | Phase 0 – Spikes | ✅ abgeschlossen am 23.10.2026 ([spikes/](spikes/README.md)) |
 | Phase 1 – MVP | 🟡 1.1–1.8 ✅, Sync seit `v0.6.0` über die Personal API (E7); 1.9 zurückgestellt (keine Doppelaufzeichnungen); offen: Abnahme des Syncs auf dem Pi |
 | Phase 2 – Analysen | 🟡 begonnen: Kategorien Indoor-Rad/Fitness und Eddington-Zahl ✅ (`v0.6.0`); als Nächstes Explorer-Tiles, Bestleistungen, HF-Zonen |
-| UI-Überarbeitung (mobile first, Light/Dark) | 📝 Konzept [ui-konzept.md](ui-konzept.md) abgestimmt; Umsetzung U1–U5 als `v0.7.0`, danach Phase 2 |
+| UI-Überarbeitung (mobile first, Light/Dark) | ✅ `v0.7.0` ([ui-konzept.md](ui-konzept.md), Umsetzung §10); danach Phase 2 |
 
 Vorhanden im Repository:
 
@@ -74,6 +74,12 @@ für sich lauffähig, getestet und releasebar ist.
   (GeoJSON, Property `t` = lokale Startzeit als Unix-Sekunden) und filtert im Browser
   (`static/heatmap-data.js`, Node-getestet). Bei sehr vielen Aktivitäten (> 2.000) wären
   serverseitige Vektor-/Raster-Kacheln der nächste Schritt; mit ca. 100 Fahrten pro Jahr unnötig.
+- **v0.7.0 (23.10.2026):** neue Oberfläche nach [ui-konzept.md](ui-konzept.md): Design-Tokens
+  hell/dunkel in `static/app.css` (hell Standard, Umschalter auf `/more`, `static/theme.js`),
+  Bottom-Navigation, Aktivitätskacheln (`templates/activity_tile.html`, `internal/web/tiles.go`)
+  mit Mini-Route aus `internal/routesvg`, Nachladen per htmx (`HX-Request` → Fragment
+  `activityFeed`), Dashboard in `internal/web/dashboard.go` (Zeitraum, Zielring, 12-Wochen-Verlauf).
+  Visuelle Abnahme steht in §10 des Konzepts; auf dem Pi offen: kurzer Blick in Panel und HA-App.
 - **v0.6.0 (23.10.2026):** Sync über die **Personal API** (S4/E7): `garmin.Client` tauscht den
   Schlüssel aus `garmin_api_key` gegen ein 24-h-Token (Text-JWT, Cache im Speicher), listet
   seitenweise und lädt Original-FIT-ZIPs; 401/403 → `ErrAuthRequired` → einmalige HA-Benachrichtigung.

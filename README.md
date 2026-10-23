@@ -6,12 +6,12 @@ my Velo zeigt einzelne Aktivitäten mit Karte, die Historie mit Statistiken und 
 Heatmap, ohne Abo und ohne zusätzliche Cloud-Plattform. Die Daten stammen aus den Original-FIT-Dateien
 der Garmin-Geräte und bleiben lokal auf der Home-Assistant-Instanz.
 
-> **Status: Version 0.6.0 – MVP vollständig, Phase 2 (Analysen) begonnen.** Aktivitäten kommen
+> **Status: Version 0.7.0 – MVP vollständig, neue mobile Oberfläche, Phase 2 (Analysen) begonnen.** Aktivitäten kommen
 > automatisch über die offizielle Garmin Connect Personal API oder per Upload/Garmin-Export,
-> lassen sich filtern, mit Karte und Diagrammen ansehen, statistisch auswerten (Dashboard,
-> Jahresziele, Eddington) und als persönliche Heatmap darstellen.
+> erscheinen als Kacheln mit Streckenskizze, lassen sich mit Karte und Diagrammen ansehen, statistisch auswerten (Dashboard,
+> Jahresziele, Eddington) und als persönliche Heatmap darstellen – hell oder dunkel, auf Handy und Desktop.
 > - **Weitermachen:** [docs/next-steps.md](docs/next-steps.md) – Arbeitsstand, offene Prüfungen, Phase-1-Zuschnitt
-> - **Plan und Entscheidungen:** [docs/plan.md](docs/plan.md)
+> - **Plan und Entscheidungen:** [docs/plan.md](docs/plan.md), UI: [docs/ui-konzept.md](docs/ui-konzept.md)
 > - **Spike-Ergebnisse:** [docs/spikes](docs/spikes/README.md)
 
 ## Ziele

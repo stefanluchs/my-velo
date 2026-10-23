@@ -4,24 +4,44 @@
 <h1>Übersicht</h1>
 <section class="card empty">
   <p>Noch keine Aktivitäten vorhanden.</p>
-  <p><a class="button" href="import">Aktivitäten importieren</a>{{if .Garmin}} oder <a class="button" href="garmin">Garmin Connect einrichten</a>{{end}}</p>
+  <p class="actions"><a class="button" href="import">Aktivitäten importieren</a>{{if .Garmin}} <a class="button secondary" href="garmin">Garmin Connect einrichten</a>{{end}}</p>
 </section>
 {{else}}
-<div class="dashboard-head">
-  <h1>Übersicht</h1>
-  <nav class="chips" aria-label="Sportart">
-    {{range .Categories}}<a class="chip {{if eq .ID $.Data.Category.ID}}active{{end}}" href="./?cat={{.ID}}">{{.Icon}} {{.Label}}</a>{{end}}
-  </nav>
-</div>
+<h1 class="visually-hidden">Übersicht</h1>
+<nav class="chips scroll-x" aria-label="Sportart">
+  {{range .Categories}}<a class="chip {{if eq .ID $.Data.Category.ID}}active{{end}}" href="./?cat={{.ID}}{{if ne $.Data.Period "week"}}&amp;p={{$.Data.Period}}{{end}}">{{.Icon}} {{.Label}}</a>{{end}}
+</nav>
 
-<div class="period-grid">
-  {{range .Periods}}{{template "periodCard" .}}{{end}}
-  {{with .Goal}}{{template "goalBar" .}}{{else}}
+<div class="dashboard">
+  <section class="card hero">
+    <div class="segmented" role="group" aria-label="Zeitraum">
+      {{range .Tabs}}<a href="./?cat={{$.Data.Category.ID}}&amp;p={{.ID}}" {{if .Active}}aria-current="true"{{end}}>{{.Label}}</a>{{end}}
+    </div>
+    {{template "periodBody" .Hero}}
+  </section>
+
+  {{with .Goal}}{{template "goalCard" .}}{{else}}
   <section class="card goal">
     <h2>Jahresziel</h2>
     <p class="hint">Noch kein Ziel für {{.Category.Label}}. <a href="stats?cat={{.Category.ID}}#goal">Ziel festlegen</a></p>
   </section>
   {{end}}
+
+  <section class="card trend">
+    <h2>Letzte 12 Wochen</h2>
+    <svg class="sparkline" viewBox="0 0 240 56" preserveAspectRatio="none" role="img" aria-label="Distanz pro Woche">
+      {{range .Trend.Bars}}<rect x="{{.X}}" y="{{.Y}}" width="{{.W}}" height="{{.H}}" rx="2" {{if .Current}}class="current"{{end}}><title>{{.Title}}</title></rect>{{end}}
+    </svg>
+    <p class="hint">⌀ {{printf "%.0f" .Trend.AvgKm}} km pro Woche</p>
+  </section>
+</div>
+
+<div class="section-head">
+  <h2>Letzte Aktivitäten</h2>
+  <a href="activities">Alle {{.Count}}</a>
+</div>
+<div class="tile-grid">
+  {{range .Recent}}{{template "activityTile" .}}{{end}}
 </div>
 
 {{with .Garmin}}
@@ -32,9 +52,5 @@
   {{else}}Garmin Connect eingerichtet – <a href="garmin">ersten Abgleich starten</a>{{end}}
 </p>
 {{end}}
-
-<h2>Letzte Aktivitäten</h2>
-{{template "activityTable" .Recent}}
-<p><a href="activities">Alle {{.Count}} Aktivitäten</a> · <a href="stats?cat={{.Category.ID}}">Statistik</a></p>
 {{end}}
 {{end}}{{end}}

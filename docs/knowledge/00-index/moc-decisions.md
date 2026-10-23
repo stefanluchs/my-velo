@@ -13,7 +13,7 @@ Zurück zum [[index]].
 ## Lösung und Stack
 - [[eigenes-go-add-on-option-e]] — Option E statt Dreeve, Endurain, garmin-grafana, Lovelace
 - [[frontend-ohne-node-build]] — `html/template`, htmx, MapLibre, uPlot als ES-Module
-- [[ui-mobile-first-light-standard]] — 2026-10-24: Bottom-Tabs, Velo-Orange, Hell als Standard, Kacheln
+- [[ui-mobile-first-light-standard]] — 2026-10-23: Bottom-Tabs, Velo-Orange, Hell als Standard, Kacheln
 
 ## Zurückgestellt
 - [[doppelaufzeichnungen-zurueckgestellt]] — Schritt 1.9 pausiert, keine Überlappungen im Export

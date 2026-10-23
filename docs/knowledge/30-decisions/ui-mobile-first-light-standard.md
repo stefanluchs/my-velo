@@ -8,11 +8,11 @@ tags: [ui, theme, dark-mode, navigation, kacheln]
 sources:
   - "doc:docs/ui-konzept.md"
   - "session:38cbacee"
-created: 2026-10-24
-updated: 2026-10-24
+created: 2026-10-23
+updated: 2026-10-23
 supersedes: []
 superseded_by: null
-decision_date: 2026-10-24
+decision_date: 2026-10-23
 scope: Web-Oberfläche des Add-ons
 drivers: [kein horizontales Scrollen auf dem Handy, Lesbarkeit in Hell und Dunkel, WCAG AA, keine Kartenkosten]
 alternatives_rejected:
@@ -34,11 +34,19 @@ In `v0.6.0` erzeugte die Top-Navigation auf 390 px horizontales Scrollen auf jed
 war kontrastarm und die Chart-Achsen dort unsichtbar. Tokens und Kontrastwerte stehen in `docs/ui-konzept.md`.
 
 ## Auswirkung auf die Umsetzung
-- Komponenten nutzen nur semantische Tokens; Kategorienfarben kommen aus `sport.Categories`.
-- Ohne gespeicherte Wahl gilt Hell; „System“ folgt `prefers-color-scheme`.
-- Routenvorschau ohne Kachel-Anfragen; jede Seite muss `scrollWidth <= innerWidth` erfüllen.
+- Komponenten nutzen nur semantische Tokens (`static/app.css`); Kategorienfarben kommen aus
+  `sport.Categories` (`Color`/`ColorDark`) und werden als `--cat-<id>`/`.cat-<id>` gerendert.
+- Ohne gespeicherte Wahl gilt Hell; „System“ folgt `prefers-color-scheme`. Ein Inline-Skript im
+  `<head>` setzt `data-theme` vor dem ersten Paint (Schlüssel `myvelo.theme` in `localStorage`).
+- Routenvorschau ohne Kachel-Anfragen: `internal/routesvg` rechnet bei jeder Anfrage aus der
+  gespeicherten Polyline; ein Cache wurde bewusst nicht eingeführt (billig, keine Migration).
+- Jede Seite muss `scrollWidth <= clientWidth` erfüllen; Ausnahmen nur innerhalb von Karten
+  (`.table-wrap`) oder der Chip-Leiste `.scroll-x`.
+- Abweichungen vom Entwurf: `docs/ui-konzept.md` §10.
 
 ## Verbindungen
 - [[moc-decisions]]
 - [[frontend-ohne-node-build]]
 - [[uplot-farben-aus-theme-tokens]]
+- [[svg-fragmentverweise-und-base-href]]
+- [[aktivitaetsfeed-nachladen-per-htmx]]

@@ -79,6 +79,7 @@ var funcs = template.FuncMap{
 	"sportIcon":  sport.Icon,
 	"orDash":     orDash,
 	"kmInt":      kmInt,
+	"thousands":  thousands,
 	"hours":      hours,
 	"signedKm":   signedKm,
 	"clock":      clock,
@@ -107,7 +108,24 @@ var funcs = template.FuncMap{
 		b, _ := json.Marshal(out)
 		return template.JS(b)
 	},
-	"add": func(a, b int) int { return a + b },
+	"add":         func(a, b int) int { return a + b },
+	"icon":        icon,
+	"categoryCSS": categoryCSS,
+}
+
+// categoryCSS defines --cat-<id> for both themes and .cat-<id> classes
+// that set --cat, so sport.Categories stays the only source of the colors.
+func categoryCSS() template.CSS {
+	var light, dark, classes strings.Builder
+	for _, c := range sport.Categories {
+		fmt.Fprintf(&light, "--cat-%s:%s;", c.ID, c.Color)
+		fmt.Fprintf(&dark, "--cat-%s:%s;", c.ID, c.ColorDark)
+		fmt.Fprintf(&classes, ".cat-%s{--cat:var(--cat-%s)}", c.ID, c.ID)
+	}
+	return template.CSS(":root{" + light.String() + "}" +
+		"[data-theme=dark]{" + dark.String() + "}" +
+		"@media (prefers-color-scheme:dark){[data-theme=system]{" + dark.String() + "}}" +
+		classes.String())
 }
 
 // NewHandler returns the HTTP handler with all panel routes.
@@ -123,12 +141,13 @@ func NewHandler(d Deps) http.Handler {
 	if s.assetVersion == "" || s.assetVersion == "dev" {
 		s.assetVersion = strconv.FormatInt(d.Info.StartedAt.Unix(), 36)
 	}
-	for _, page := range []string{"index.html", "import.html", "activities.html", "activity.html", "heatmap.html", "stats.html", "garmin.html"} {
+	for _, page := range []string{"index.html", "import.html", "activities.html", "activity.html", "heatmap.html", "stats.html", "garmin.html", "more.html"} {
 		s.pages[page] = template.Must(template.New(page).Funcs(funcs).ParseFS(templateFS,
-			"templates/layout.html", "templates/import_status.html", "templates/activity_table.html", "templates/period.html", "templates/"+page))
+			"templates/layout.html", "templates/import_status.html", "templates/activity_tile.html", "templates/period.html", "templates/"+page))
 	}
 	s.pages[fragmentImportStatus] = s.pages["import.html"]
 	s.pages[fragmentActivityTitle] = s.pages["activity.html"]
+	s.pages[fragmentFeed] = s.pages["activities.html"]
 
 	static, err := fs.Sub(staticFS, "static")
 	if err != nil {
@@ -149,6 +168,7 @@ func NewHandler(d Deps) http.Handler {
 	mux.HandleFunc("GET /api/tracks", s.tracks)
 	mux.HandleFunc("GET /garmin", s.garminPage)
 	mux.Handle("POST /garmin/sync", requireHTMX(http.HandlerFunc(s.garminSync)))
+	mux.HandleFunc("GET /more", s.more)
 	mux.HandleFunc("GET /import", s.importPage)
 	mux.HandleFunc("GET /import/status", s.importStatus)
 	mux.Handle("POST /import/upload", requireHTMX(http.HandlerFunc(s.importUpload)))
@@ -206,70 +226,6 @@ func (s *server) health(w http.ResponseWriter, r *http.Request) {
 		"map_key_set":  s.Info.MapKeySet,
 		"activities":   count,
 	})
-}
-
-type indexData struct {
-	Garmin     *garmin.Status
-	Count      int
-	Categories []sport.Category
-	Category   sport.Category
-	Periods    []PeriodSummary
-	Goal       *GoalProgress
-	Recent     []store.Activity
-}
-
-// index is the dashboard: totals of the current week, month and year for one
-// sport category, the yearly goal and the latest activities.
-func (s *server) index(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-	count, err := s.Store.Count(ctx)
-	if err != nil {
-		s.serverError(w, "count activities", err)
-		return
-	}
-	d := indexData{Count: count, Categories: sport.Categories}
-	if s.Garmin != nil {
-		st, err := s.Garmin.Status(ctx)
-		if err != nil {
-			s.Logger.Warn("garmin status", "err", err)
-		}
-		d.Garmin = &st
-	}
-	if count == 0 {
-		s.render(w, r, "index.html", "index", d)
-		return
-	}
-	var ok bool
-	if d.Category, ok = sport.ByID(r.URL.Query().Get("cat")); !ok {
-		d.Category, _ = sport.ByID(defaultCategory)
-	}
-	today := localDate(s.now())
-	tomorrow := today.AddDate(0, 0, 1)
-	base := categoryFilter(d.Category.ID)
-	for _, p := range []struct {
-		label string
-		from  time.Time
-	}{
-		{"Diese Woche", weekStart(today)},
-		{"Dieser Monat", monthStart(today)},
-		{"Dieses Jahr", yearStart(today.Year())},
-	} {
-		sum, err := s.periodSummary(ctx, p.label, base, p.from, tomorrow)
-		if err != nil {
-			s.serverError(w, "sum period", err)
-			return
-		}
-		d.Periods = append(d.Periods, sum)
-	}
-	if d.Goal, err = s.goalProgress(ctx, d.Category.ID, today.Year(), today); err != nil {
-		s.serverError(w, "goal", err)
-		return
-	}
-	if d.Recent, err = s.Store.List(ctx, store.ListFilter{Limit: 10}); err != nil {
-		s.serverError(w, "list activities", err)
-		return
-	}
-	s.render(w, r, "index.html", "index", d)
 }
 
 func (s *server) now() time.Time { return s.Deps.Now() }

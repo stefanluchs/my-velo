@@ -5,6 +5,7 @@ package web
 import (
 	"fmt"
 	"math"
+	"strings"
 	"time"
 )
 
@@ -12,11 +13,18 @@ import (
 func km(m float64) string { return germanFloat(m/1000, 1) }
 
 // kmInt formats meters as whole kilometers with thousands separator.
-func kmInt(m float64) string {
-	n := int(math.Round(m / 1000))
+func kmInt(m float64) string { return thousands(int(math.Round(m / 1000))) }
+
+// thousands formats an integer with German thousands separators.
+func thousands(n int) string {
 	s := fmt.Sprint(n)
+	neg := strings.HasPrefix(s, "-")
+	s = strings.TrimPrefix(s, "-")
 	for i := len(s) - 3; i > 0; i -= 3 {
 		s = s[:i] + "." + s[i:]
+	}
+	if neg {
+		return "−" + s
 	}
 	return s
 }

@@ -47,3 +47,4 @@ Server-Handler antworten bei Nutzerfehlern mit 4xx **und** einem HTML-Fragment.
 - [[moc-patterns]]
 - [[post-mit-requirehtmx-als-csrf-schutz]]
 - [[frontend-ohne-node-build]]
+- [[aktivitaetsfeed-nachladen-per-htmx]]

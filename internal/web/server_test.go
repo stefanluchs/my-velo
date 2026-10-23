@@ -223,7 +223,7 @@ func TestUploadImportsActivities(t *testing.T) {
 		t.Errorf("finished status fragment wrong: %s", status)
 	}
 	index := env.do(ingressGET("/")).Body.String()
-	if !strings.Contains(index, "2 Aktivitäten") || !strings.Contains(index, "Rennrad") {
+	if !strings.Contains(index, "Alle 2") || !strings.Contains(index, "Rennrad") {
 		t.Error("index should list the imported activities")
 	}
 }

@@ -4,9 +4,10 @@
 my Velo speichert und zeigt deine Sportaktivitäten lokal in Home Assistant. Quelle sind die
 Original-FIT-Dateien deiner Geräte.
 
-> **Stand 0.6.0:** Import und automatischer Abgleich über die offizielle Garmin Connect Personal
-> API, Dashboard, Aktivitätenliste, Detailansicht mit Karte und Diagrammen, Statistik mit
-> Jahreszielen und Eddington-Zahl, persönliche Heatmap.
+> **Stand 0.7.0:** Import und automatischer Abgleich über die offizielle Garmin Connect Personal
+> API, Dashboard, Aktivitäten als Kacheln, Detailansicht mit Karte und Diagrammen, Statistik mit
+> Jahreszielen und Eddington-Zahl, persönliche Heatmap. Oberfläche für Handy und Desktop, hell
+> oder dunkel.
 
 ## Installation
 
@@ -79,20 +80,31 @@ Was dabei passiert:
   neuen Schlüssel erzeugen und in der Konfiguration ersetzen.
 - Der Datei-Import funktioniert unabhängig vom Abgleich.
 
+## Bedienung und Darstellung
+
+- **Navigation:** auf dem Handy unten (Übersicht, Aktivitäten, Statistik, Heatmap, Mehr), am
+  Desktop oben. **Import**, **Garmin** und **Darstellung** liegen unter **Mehr**.
+- **Hell/Dunkel:** Standard ist hell. Unter **Mehr → Darstellung** lässt sich Dunkel oder
+  „System“ (folgt der Geräteeinstellung) wählen; die Wahl gilt pro Browser.
+- **Aktivitäten** erscheinen als Kacheln mit Streckenskizze, gruppiert nach Monat. Beim
+  Herunterscrollen werden ältere Aktivitäten automatisch nachgeladen; **Filter** öffnet Sportart,
+  Jahr und Zeitraum.
+
 ## Übersicht und Statistik
 
 - **Sportarten:** Rad, Indoor-Rad (Rolle, virtuelle Fahrten), Laufen, Wandern & Gehen, Fitness
   (Crosstrainer, Kraft, Yoga, Rudergerät) und Sonstige. Ziele, Summen und Eddington gelten je
   Sportart; Indoor-Fahrten zählen also nicht zum Rad-Ziel.
-- Die **Übersicht** zeigt Woche, Monat und Jahr bis heute für die gewählte Sportart; „Vorjahr“
-  vergleicht mit denselben Kalendertagen des Vorjahres.
+- Die **Übersicht** zeigt wahlweise Woche, Monat oder Jahr bis heute für die gewählte Sportart;
+  „Vorjahr“ vergleicht mit denselben Kalendertagen des Vorjahres. Dazu Jahresziel, die Kilometer
+  der letzten 12 Wochen und die neuesten Aktivitäten.
 - Unter **Statistik** gibt es Balken pro Monat oder Kalenderwoche (ISO, Woche beginnt Montag), den
-  kumulierten Jahresvergleich und die Tabelle aller Jahre.
+  kumulierten Jahresvergleich und die Übersicht aller Jahre.
 - **Eddington-Zahl:** größte Zahl E, für die du an E Tagen jeweils mindestens E km geschafft
   hast (alle Aktivitäten eines Tages zusammen, nur volle km). Angezeigt gesamt und für das gewählte
   Jahr, dazu wie viele Tage für E+1 noch fehlen.
-- **Jahresziel:** unten auf der Statistikseite je Sportart in km eintragen. Der Strich im
-  Fortschrittsbalken markiert das Soll für heute; die Hochrechnung setzt das bisherige Tempo fort.
+- **Jahresziel:** unten auf der Statistikseite je Sportart in km eintragen. Der Punkt auf dem
+  Fortschrittsring markiert das Soll für heute; die Hochrechnung setzt das bisherige Tempo fort.
 - Aktivitäten zählen zu dem Tag, an dem sie nach Ortszeit des Geräts begonnen haben. „Heute“ folgt
   der Zeitzone von Home Assistant.
 
@@ -101,8 +113,8 @@ Was dabei passiert:
 Unter **Heatmap** liegen alle Aktivitäten mit GPS-Daten übereinander. Jede Fahrt ist eine
 schwache Linie; je öfter eine Strecke gefahren wurde, desto kräftiger erscheint sie.
 
-- **Sport** und **Zeitraum** filtern sofort, ohne Neuladen; darüber stehen Anzahl und Kilometer
-  der Auswahl.
+- **Sport** und **Zeitraum** filtern sofort, ohne Neuladen; Anzahl und Kilometer der Auswahl
+  stehen oben auf der Karte. Auf dem Handy öffnet **Filter** die Einstellungen von unten.
 - **Farbe nach Sport** unterscheidet Rad, Laufen und Wandern; **Karte abdunkeln** hebt die Linien hervor.
 - **Auf Auswahl zoomen** passt den Ausschnitt an die gefilterten Aktivitäten an.
 - Ein Klick auf eine Linie listet die Aktivitäten an dieser Stelle; der Link öffnet die Detailansicht.

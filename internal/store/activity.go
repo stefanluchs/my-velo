@@ -366,6 +366,33 @@ func (s *Store) Tracks(ctx context.Context, f ListFilter) ([]TrackInfo, error) {
 	return out, rows.Err()
 }
 
+// Polylines returns the simplified tracks of the given activities by ID.
+// Activities without a track are missing from the map.
+func (s *Store) Polylines(ctx context.Context, ids []int64) (map[int64]string, error) {
+	out := make(map[int64]string, len(ids))
+	if len(ids) == 0 {
+		return out, nil
+	}
+	args := make([]any, len(ids))
+	for i, id := range ids {
+		args[i] = id
+	}
+	rows, err := s.db.QueryContext(ctx, `SELECT activity_id, polyline FROM activity_track WHERE activity_id IN (`+placeholders(len(ids))+`)`, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var id int64
+		var p string
+		if err := rows.Scan(&id, &p); err != nil {
+			return nil, err
+		}
+		out[id] = p
+	}
+	return out, rows.Err()
+}
+
 // Get returns one activity.
 func (s *Store) Get(ctx context.Context, id int64) (Activity, error) {
 	row := s.db.QueryRowContext(ctx, `SELECT id, name, `+metricColumns+`, created_at, updated_at FROM activity WHERE id = ?`, id)

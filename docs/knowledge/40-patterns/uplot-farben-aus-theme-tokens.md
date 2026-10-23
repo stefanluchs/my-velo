@@ -10,8 +10,8 @@ sources:
   - "code:internal/web/static/stats.js"
   - "doc:docs/ui-konzept.md"
   - "session:38cbacee"
-created: 2026-10-24
-updated: 2026-10-24
+created: 2026-10-23
+updated: 2026-10-23
 supersedes: []
 superseded_by: null
 ---
@@ -28,11 +28,13 @@ werden beim Theme-Wechsel nicht neu eingefärbt.
 
 ## Evidenz
 - Screenshots 390 px Light/Dark der Statistik- und Detailseite (Sitzung 38cbacee).
-- `activity.js`/`stats.js` setzen keine Achsenfarben.
+- Bis `v0.6.0` setzten `activity.js`/`stats.js` keine Achsenfarben; seit `v0.7.0` liefert
+  `theme-data.js` `axisStyle()` und `theme.js` `chartColors()`/`onThemeChange()`.
 
 ## Auswirkung auf die Umsetzung
-- Farben per `getComputedStyle(document.documentElement).getPropertyValue('--chart-axis')` usw. lesen.
-- Bei `matchMedia('(prefers-color-scheme: dark)')`-Änderung oder manuellem Theme-Wechsel Charts neu erzeugen.
+- Farben über `chartColors()` aus `--chart-*` lesen und mit `axisStyle(colors, …)` an jede Achse geben.
+- Bei Theme-Wechsel (Ereignis `myvelo:theme` oder System-Wechsel bei „System“) Charts zerstören
+  und neu zeichnen; `destroy()` meldet uPlot-Sync selbst ab.
 - Die Optionsbildung DOM-frei halten, damit sie per `node --test` prüfbar bleibt ([[dom-freie-browserlogik-mit-node-test]]).
 
 ## Verbindungen

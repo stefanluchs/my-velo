@@ -22,8 +22,11 @@ type Category struct {
 	// Rules select the activities of the category. The category "other" has
 	// none and matches everything not matched elsewhere.
 	Rules []Rule
-	// Color is used for the category on maps.
-	Color string
+	// Color marks the category in light mode and on maps; ColorDark is the
+	// variant for the dark theme. Both reach at least 3:1 against the
+	// card background (WCAG non-text contrast).
+	Color     string
+	ColorDark string
 }
 
 // Other is the ID of the catch-all category.
@@ -31,18 +34,18 @@ const Other = "other"
 
 // Categories in display order.
 var Categories = []Category{
-	{ID: "bike", Label: "Rad", Icon: "🚴", Color: "#e8590c", Rules: []Rule{{Sport: "cycling"}, {Sport: "e_biking"}}},
-	{ID: "indoor", Label: "Indoor-Rad", Icon: "🏠", Color: "#f59f00", Rules: []Rule{
+	{ID: "bike", Label: "Rad", Icon: "🚴", Color: "#d9480f", ColorDark: "#ff7a33", Rules: []Rule{{Sport: "cycling"}, {Sport: "e_biking"}}},
+	{ID: "indoor", Label: "Indoor-Rad", Icon: "🏠", Color: "#b7791f", ColorDark: "#f2b84b", Rules: []Rule{
 		{Sport: "cycling", SubSports: []string{"indoor_cycling", "virtual_activity", "spin"}},
 	}},
-	{ID: "run", Label: "Laufen", Icon: "🏃", Color: "#7048e8", Rules: []Rule{{Sport: "running"}}},
-	{ID: "hike", Label: "Wandern & Gehen", Icon: "🥾", Color: "#2b8a3e", Rules: []Rule{
+	{ID: "run", Label: "Laufen", Icon: "🏃", Color: "#6741d9", ColorDark: "#9775fa", Rules: []Rule{{Sport: "running"}}},
+	{ID: "hike", Label: "Wandern & Gehen", Icon: "🥾", Color: "#2f9e44", ColorDark: "#51cf66", Rules: []Rule{
 		{Sport: "hiking"}, {Sport: "walking"}, {Sport: "snowshoeing"},
 	}},
-	{ID: "fitness", Label: "Fitness", Icon: "🏋️", Color: "#c2255c", Rules: []Rule{
+	{ID: "fitness", Label: "Fitness", Icon: "🏋️", Color: "#c2255c", ColorDark: "#f06595", Rules: []Rule{
 		{Sport: "fitness_equipment"}, {Sport: "training"}, {Sport: "rowing", SubSports: []string{"indoor_rowing"}},
 	}},
-	{ID: Other, Label: "Sonstige", Icon: "⏱️", Color: "#1c7ed6"},
+	{ID: Other, Label: "Sonstige", Icon: "⏱️", Color: "#1971c2", ColorDark: "#4dabf7"},
 }
 
 // ByID returns the category with the given ID.

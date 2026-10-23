@@ -6,6 +6,8 @@
 import uPlot from "./vendor/uplot-1.6.32/uPlot.esm.js";
 import { coordinates, positionAt, xAxis, chartSeries, thin } from "./activity-data.js";
 import { bounds } from "./map-style.js";
+import { axisStyle, withAlpha } from "./theme-data.js";
+import { chartColors, onThemeChange } from "./theme.js";
 
 const status = () => document.getElementById("charts-status");
 
@@ -22,7 +24,11 @@ export async function showActivity(id) {
   }
 
   const position = await drawMap(stream);
-  drawCharts(stream, position);
+  let charts = drawCharts(stream, position);
+  onThemeChange(() => {
+    charts?.destroy();
+    charts = drawCharts(stream, position);
+  });
 }
 
 async function drawMap(stream) {
@@ -38,7 +44,7 @@ async function drawMap(stream) {
   map.addLayer({ id: "track-casing", type: "line", source: "track", layout: { "line-join": "round", "line-cap": "round" },
     paint: { "line-color": "#fff", "line-width": 6, "line-opacity": 0.8 } });
   map.addLayer({ id: "track", type: "line", source: "track", layout: { "line-join": "round", "line-cap": "round" },
-    paint: { "line-color": "#e8590c", "line-width": 3.5 } });
+    paint: { "line-color": getComputedStyle(container).getPropertyValue("--cat").trim() || "#d9480f", "line-width": 3.5 } });
 
   new maplibregl.Marker({ color: "#2b8a3e", scale: 0.7 }).setLngLat(coords[0]).setPopup(new maplibregl.Popup().setText("Start")).addTo(map);
   new maplibregl.Marker({ color: "#c92a2a", scale: 0.7 }).setLngLat(coords.at(-1)).setPopup(new maplibregl.Popup().setText("Ziel")).addTo(map);
@@ -57,17 +63,27 @@ async function drawMap(stream) {
   };
 }
 
+const fmt = (v, digits) => v.toLocaleString("de-DE", { maximumFractionDigits: digits });
+
+/**
+ * Draws one compact chart per channel with a shared cursor. Instead of
+ * uPlot's legend table every chart shows its value in its header and the
+ * card header shows the x position. Returns a handle to redraw on theme
+ * changes, or null without data.
+ */
 function drawCharts(stream, showPosition) {
   const container = document.getElementById("charts");
+  const xOut = document.getElementById("charts-x");
   const axis = xAxis(stream);
   const all = chartSeries(stream);
   if (!all.length) {
-    status().textContent = "Keine Messreihen vorhanden.";
-    return;
+    status()?.replaceChildren("Keine Messreihen vorhanden.");
+    return null;
   }
   const { x, series, index } = thin(axis.values, all);
-  status().remove();
+  status()?.remove();
 
+  const colors = chartColors();
   const width = () => container.clientWidth;
   const plots = [];
   const sync = uPlot.sync("activity");
@@ -75,33 +91,38 @@ function drawCharts(stream, showPosition) {
   for (const s of series) {
     const box = document.createElement("section");
     box.className = "chart";
+    const head = document.createElement("header");
+    const name = document.createElement("span");
+    name.textContent = `${s.label} (${s.unit})`;
+    const out = document.createElement("output");
+    head.append(name, out);
+    box.append(head);
     container.append(box);
+    const color = colors.series[s.key] || s.color;
+    const last = s === series.at(-1);
     const plot = new uPlot({
       width: width(),
-      height: s.key === "alt" ? 160 : 120,
-      legend: { show: true, live: true },
-      cursor: { sync: { key: sync.key }, drag: { x: true, y: false } },
+      height: s.key === "alt" ? 140 : 110,
+      legend: { show: false },
+      cursor: { sync: { key: sync.key }, drag: { x: true, y: false }, points: { size: 7, fill: color } },
       scales: { x: { time: false } },
       axes: [
-        { label: s === series.at(-1) ? axis.label : undefined, values: (u, ticks) => ticks.map((v) => v.toLocaleString("de-DE")) },
-        { label: s.unit, size: 55 },
+        axisStyle(colors, { size: last ? 34 : 20, values: (u, ticks) => (last ? ticks.map((v) => fmt(v, 1)) : ticks.map(() => "")) }),
+        axisStyle(colors, { size: 44, values: (u, ticks) => ticks.map((v) => fmt(v, 0)) }),
       ],
       series: [
-        { label: axis.unit, value: (u, v) => (v == null ? "–" : v.toLocaleString("de-DE", { maximumFractionDigits: 2 })) },
-        {
-          label: s.label,
-          stroke: s.color,
-          width: 1.5,
-          fill: s.fill ? s.color + "33" : undefined,
-          spanGaps: false,
-          value: (u, v) => (v == null ? "–" : `${v.toLocaleString("de-DE", { maximumFractionDigits: 1 })} ${s.unit}`),
-        },
+        {},
+        { stroke: color, width: 1.5, fill: s.fill ? withAlpha(color, 0.2) : undefined, spanGaps: false, points: { show: false } },
       ],
       hooks: {
         setCursor: [
           (u) => {
-            if (!showPosition || u.cursor.idx == null) return;
-            const pos = positionAt(stream, index[u.cursor.idx]);
+            const i = u.cursor.idx;
+            const v = i == null ? null : u.data[1][i];
+            out.textContent = v == null ? "" : `${fmt(v, 1)} ${s.unit}`;
+            if (last) xOut.textContent = i == null ? "" : `${fmt(u.data[0][i], 2)} ${axis.unit}`;
+            if (!showPosition || i == null) return;
+            const pos = positionAt(stream, index[i]);
             if (pos) showPosition(pos);
           },
         ],
@@ -110,5 +131,14 @@ function drawCharts(stream, showPosition) {
     plots.push(plot);
   }
 
-  new ResizeObserver(() => plots.forEach((p) => p.setSize({ width: width(), height: p.height }))).observe(container);
+  const resize = new ResizeObserver(() => plots.forEach((p) => p.setSize({ width: width(), height: p.height })));
+  resize.observe(container);
+  return {
+    destroy() {
+      resize.disconnect();
+      plots.forEach((p) => p.destroy());
+      container.replaceChildren();
+      xOut.textContent = "";
+    },
+  };
 }

@@ -5,87 +5,122 @@
 
 import uPlot from "./vendor/uplot-1.6.32/uPlot.esm.js";
 import { METRICS, barSeries, cumulativeSeries, monthTicks, yearColor, labelStep } from "./stats-data.js";
+import { axisStyle, withAlpha } from "./theme-data.js";
+import { chartColors, onThemeChange } from "./theme.js";
 
 const fmt = (v, digits = 0) => (v == null ? "–" : v.toLocaleString("de-DE", { maximumFractionDigits: digits }));
+const compact = (el) => el.clientWidth < 520;
 
 export function showStats() {
   const data = JSON.parse(document.getElementById("chart-data").textContent);
-  const bars = drawBars(document.getElementById("bars"), data, "km");
-  drawCumulative(document.getElementById("cumulative"), data);
-
   const group = document.getElementById("metric");
+  let metric = "km";
+  let bars, cumulative;
+  const draw = () => {
+    bars?.destroy();
+    cumulative?.destroy();
+    const colors = chartColors();
+    bars = drawBars(document.getElementById("bars"), document.getElementById("bars-readout"), data, metric, colors);
+    cumulative = drawCumulative(document.getElementById("cumulative"), data, colors);
+  };
+  draw();
+  onThemeChange(draw);
+
   group.addEventListener("click", (e) => {
     const btn = e.target.closest("button[data-metric]");
     if (!btn) return;
     for (const b of group.querySelectorAll("button")) b.setAttribute("aria-pressed", String(b === btn));
-    bars.setMetric(btn.dataset.metric);
+    metric = btn.dataset.metric;
+    bars.setMetric(metric);
   });
 }
 
-function drawBars(container, data, metric) {
+/** Bars per month or week; the hovered bar is shown in the readout line. */
+function drawBars(container, readout, data, metric, colors) {
   const width = () => container.clientWidth;
+  const height = () => (compact(container) ? 200 : 240);
   let m = METRICS[metric];
   const { x, y } = barSeries(data, metric);
+  const total = (values) => `${data.labels.length > 12 ? "Jahr" : "Summe"}: ${fmt(values.reduce((a, v) => a + (v ?? 0), 0), m.digits)} ${m.unit}`;
+  readout.textContent = total(y);
   const plot = new uPlot({
     width: width(),
-    height: 240,
-    legend: { show: true },
+    height: height(),
+    legend: { show: false },
     cursor: { drag: { x: false, y: false }, points: { show: false } },
     scales: { x: { time: false, range: [-0.6, x.length - 0.4] }, y: { range: (u, min, max) => [0, Math.max(1, max * 1.1)] } },
     axes: [
-      {
+      axisStyle(colors, {
         values: (u, ticks) => {
           const step = labelStep(data.labels.length, u.bbox.width / devicePixelRatio);
           return ticks.map((t) => (t % step === 0 ? data.labels[t] ?? "" : ""));
         },
         splits: () => x,
+        grid: { show: false },
         gap: 4,
-        size: 30,
-      },
-      { size: 55, values: (u, ticks) => ticks.map((t) => fmt(t)) },
+        size: 28,
+      }),
+      axisStyle(colors, { size: 48, values: (u, ticks) => ticks.map((t) => fmt(t)) }),
     ],
     series: [
-      { label: data.unit === "week" ? "KW" : "Monat", value: (u, i) => (i == null ? "–" : data.labels[i]) },
+      {},
       {
-        label: m.label,
-        stroke: "#e8590c",
-        fill: "#e8590c99",
+        stroke: colors.accent,
+        fill: withAlpha(colors.accent, 0.75),
         paths: uPlot.paths.bars({ size: [0.7, 60] }),
         points: { show: false },
-        value: (u, v) => `${fmt(v, m.digits)} ${m.unit}`,
       },
     ],
+    hooks: {
+      setCursor: [
+        (u) => {
+          const i = u.cursor.idx;
+          readout.textContent = i == null ? total(u.data[1]) : `${data.labels[i]}: ${fmt(u.data[1][i], m.digits)} ${m.unit}`;
+        },
+      ],
+    },
   }, [x, y], container);
 
-  new ResizeObserver(() => plot.setSize({ width: width(), height: 240 })).observe(container);
+  const resize = new ResizeObserver(() => plot.setSize({ width: width(), height: height() }));
+  resize.observe(container);
   return {
     setMetric(next) {
       m = METRICS[next];
-      plot.series[1].label = m.label;
-      plot.root.querySelector(".u-legend .u-series:nth-child(2) .u-label").textContent = m.label;
-      plot.setData([x, barSeries(data, next).y]);
+      const values = barSeries(data, next).y;
+      plot.setData([x, values]);
+      readout.textContent = total(values);
+    },
+    destroy() {
+      resize.disconnect();
+      plot.destroy();
     },
   };
 }
 
-function drawCumulative(container, data) {
+function drawCumulative(container, data, colors) {
   const { x, series } = cumulativeSeries(data);
   const ticks = monthTicks();
   const width = () => container.clientWidth;
+  const height = () => (compact(container) ? 240 : 280);
   const plot = new uPlot({
     width: width(),
-    height: 280,
+    height: height(),
+    legend: { live: true },
     cursor: { drag: { x: false, y: false } },
     scales: { x: { time: false, range: [1, 366] }, y: { range: (u, min, max) => [0, Math.max(10, max * 1.05)] } },
     axes: [
-      { splits: () => ticks.values, values: () => ticks.labels, size: 30 },
-      { size: 60, label: "km", values: (u, t) => t.map((v) => fmt(v)) },
+      axisStyle(colors, {
+        splits: () => ticks.values,
+        values: (u) => ticks.labels.map((l, i) => (compact(container) && i % 2 ? "" : l)),
+        size: 28,
+      }),
+      axisStyle(colors, { size: 52, values: (u, t) => t.map((v) => fmt(v)) }),
     ],
     series: [
       { label: "Tag", value: (u, d) => (d == null ? "–" : dayLabel(d)) },
       ...series.map((s, i) => ({
         label: s.label,
-        stroke: s.goal ? "#868e96" : yearColor(i),
+        stroke: s.goal ? colors.muted : colors.years[i] || yearColor(i),
         width: s.goal ? 1.5 : i === 0 ? 2.5 : 1.5,
         dash: s.goal ? [6, 4] : undefined,
         points: { show: false },
@@ -93,7 +128,14 @@ function drawCumulative(container, data) {
       })),
     ],
   }, [x, ...series.map((s) => s.values)], container);
-  new ResizeObserver(() => plot.setSize({ width: width(), height: 280 })).observe(container);
+  const resize = new ResizeObserver(() => plot.setSize({ width: width(), height: height() }));
+  resize.observe(container);
+  return {
+    destroy() {
+      resize.disconnect();
+      plot.destroy();
+    },
+  };
 }
 
 function dayLabel(dayOfYear) {

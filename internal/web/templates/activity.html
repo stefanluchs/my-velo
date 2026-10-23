@@ -6,9 +6,13 @@
 
 {{define "activityTitle"}}
 <div id="activity-title" class="activity-title">
-  <h1>{{sportIcon .Activity.Sport .Activity.SubSport}} {{.Title}}</h1>
+  <span class="cat-badge" aria-hidden="true">{{sportIcon .Activity.Sport .Activity.SubSport}}</span>
+  <div>
+    <h1>{{.Title}}</h1>
+    <p class="meta">{{.Date}} · {{.SportName}}</p>
+  </div>
   <details class="rename">
-    <summary>umbenennen</summary>
+    <summary>Umbenennen</summary>
     <form hx-post="activities/{{.Activity.ID}}/name" hx-target="#activity-title" hx-swap="outerHTML">
       <input type="text" name="name" value="{{.Activity.Name}}" maxlength="{{.MaxName}}" placeholder="{{.SportName}}" aria-label="Name">
       <button type="submit">Speichern</button>
@@ -19,27 +23,35 @@
 
 {{define "content"}}{{with .Data}}
 <p class="breadcrumb"><a href="activities">← Aktivitäten</a></p>
+<header class="detail-head cat-{{.Category}}">
 {{template "activityTitle" .}}
-<p class="hint">{{localTime .Activity.StartTime .Activity.TZOffsetS}} · {{.SportName}}</p>
-
-<dl class="kpis">
-  <div><dt>Distanz</dt><dd>{{km .Activity.DistanceM}} km</dd></div>
-  <div><dt>Bewegungszeit</dt><dd>{{duration .Activity.TimerS}}</dd></div>
-  <div><dt>Gesamtzeit</dt><dd>{{duration .Activity.ElapsedS}}</dd></div>
-  <div><dt>Aufstieg / Abstieg</dt><dd>{{.Activity.AscentM}} / {{.Activity.DescentM}} m</dd></div>
-  <div><dt>⌀ / max. Tempo</dt><dd>{{kmh .Activity.AvgSpeed}} / {{kmh .Activity.MaxSpeed}} km/h</dd></div>
-  {{if .Activity.AvgHR}}<div><dt>⌀ / max. HF</dt><dd>{{.Activity.AvgHR}} / {{orDash .Activity.MaxHR}} bpm</dd></div>{{end}}
-  {{if .Activity.AvgPower}}<div><dt>⌀ / max. Leistung</dt><dd>{{.Activity.AvgPower}} / {{orDash .Activity.MaxPower}} W</dd></div>{{end}}
-  {{if .Activity.AvgCadence}}<div><dt>⌀ Trittfrequenz</dt><dd>{{.Activity.AvgCadence}} rpm</dd></div>{{end}}
-</dl>
+</header>
 
 {{if .HasTrack}}
-<div id="map" class="map" aria-label="Karte der Aktivität"></div>
+<div id="map" class="map cat-{{.Category}}" aria-label="Karte der Aktivität"></div>
 {{else}}
 <p class="card hint">Keine GPS-Daten (z. B. Indoor-Aktivität).</p>
 {{end}}
-<div id="charts" class="charts" aria-label="Verlauf"></div>
-<p id="charts-status" class="hint">Messreihen werden geladen …</p>
+
+<dl class="kpi-grid">
+  {{if ge .Activity.DistanceM 100.0}}<div><dt>Distanz</dt><dd>{{km .Activity.DistanceM}} <small>km</small></dd></div>{{end}}
+  <div><dt>Bewegungszeit</dt><dd>{{duration .Activity.TimerS}}</dd></div>
+  <div><dt>Gesamtzeit</dt><dd>{{duration .Activity.ElapsedS}}</dd></div>
+  {{if or .Activity.AscentM .Activity.DescentM}}<div><dt>Aufstieg / Abstieg</dt><dd>{{.Activity.AscentM}} / {{.Activity.DescentM}} <small>m</small></dd></div>{{end}}
+  {{if gt .Activity.AvgSpeed 0.0}}<div><dt>⌀ / max. Tempo</dt><dd>{{kmh .Activity.AvgSpeed}} / {{kmh .Activity.MaxSpeed}} <small>km/h</small></dd></div>{{end}}
+  {{if .Activity.AvgHR}}<div><dt>⌀ / max. HF</dt><dd>{{.Activity.AvgHR}} / {{orDash .Activity.MaxHR}} <small>bpm</small></dd></div>{{end}}
+  {{if .Activity.AvgPower}}<div><dt>⌀ / max. Leistung</dt><dd>{{.Activity.AvgPower}} / {{orDash .Activity.MaxPower}} <small>W</small></dd></div>{{end}}
+  {{if .Activity.AvgCadence}}<div><dt>⌀ Trittfrequenz</dt><dd>{{.Activity.AvgCadence}} <small>rpm</small></dd></div>{{end}}
+</dl>
+
+<section class="card charts-card">
+  <div class="chart-head">
+    <h2>Verlauf</h2>
+    <p class="readout" id="charts-x"></p>
+  </div>
+  <div id="charts" class="charts" aria-label="Verlauf"></div>
+  <p id="charts-status" class="hint">Messreihen werden geladen …</p>
+</section>
 
 <script type="application/json" id="map-config">{{.MapConfig.JSON}}</script>
 <script type="module">

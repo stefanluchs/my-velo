@@ -85,7 +85,7 @@ func TestActivityDetailAndStream(t *testing.T) {
 		t.Fatalf("detail status %d", w.Code)
 	}
 	body := w.Body.String()
-	for _, want := range []string{`id="map"`, `id="map-config"`, `"default":"osm"`, "0,5 km", `import { showActivity } from "./static/activity.js?v=`, "Rennrad"} {
+	for _, want := range []string{`id="map"`, `id="map-config"`, `"default":"osm"`, "0,5 <small>km</small>", `import { showActivity } from "./static/activity.js?v=`, "Rennrad"} {
 		if !strings.Contains(body, want) {
 			t.Errorf("detail missing %q", want)
 		}
@@ -202,7 +202,7 @@ func TestHeatmapPageAndTracks(t *testing.T) {
 	(&importer.Importer{Store: env.store}).ImportReader(context.Background(), bytes.NewReader(fittest.Encode(t, o)), "indoor")
 
 	body := env.do(ingressGET("/heatmap")).Body.String()
-	for _, want := range []string{`id="heatmap-filter"`, `value="bike" checked`, `<option value="2026">2026</option>`, `"id":"bike","color":"#e8590c"`, `from "./static/heatmap.js?v=`} {
+	for _, want := range []string{`id="heatmap-filter"`, `value="bike" checked`, `<option value="2026">2026</option>`, `"id":"bike","color":"#d9480f"`, `from "./static/heatmap.js?v=`} {
 		if !strings.Contains(body, want) {
 			t.Errorf("heatmap page missing %q", want)
 		}

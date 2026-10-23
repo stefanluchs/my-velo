@@ -20,6 +20,10 @@ type detailData struct {
 	HasTrack  bool
 	MapConfig MapConfig
 	MaxName   int
+	// Date is the local start, e.g. "Mo, 20.10.2026 · 15:29".
+	Date string
+	// Category is the sport.Category ID, used for the accent color.
+	Category string
 }
 
 func (s *server) activityID(w http.ResponseWriter, r *http.Request) (int64, bool) {
@@ -46,7 +50,8 @@ func (s *server) loadDetail(w http.ResponseWriter, r *http.Request) (detailData,
 		return detailData{}, false
 	}
 	label := sport.Label(a.Sport, a.SubSport)
-	d := detailData{Activity: a, Title: label, SportName: label, HasTrack: a.BBox != nil, MapConfig: s.mapConfig, MaxName: store.MaxNameLength}
+	d := detailData{Activity: a, Title: label, SportName: label, HasTrack: a.BBox != nil, MapConfig: s.mapConfig, MaxName: store.MaxNameLength,
+		Date: tileDate(a), Category: sport.CategoryOf(a.Sport, a.SubSport).ID}
 	if a.Name != "" {
 		d.Title = a.Name
 	}

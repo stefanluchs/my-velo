@@ -7,6 +7,8 @@ Zurück zum [[index]].
 ## Web und htmx
 - [[htmx-4xx-fragmente-swappen]] — `responseHandling` im `htmx-config`-Meta
 - [[post-mit-requirehtmx-als-csrf-schutz]] — `POST` + `HX-Request`, Erfolg = 204
+- [[aktivitaetsfeed-nachladen-per-htmx]] — Fragment bei `HX-Request`, ein Vorgänger gegen doppelte Monatsköpfe
+- [[svg-fragmentverweise-und-base-href]] — `<use href="#…">` bricht unter Ingress; Icons inline
 
 ## Frontend-Assets und Tests
 - [[vendor-bibliotheken-versioniert]] — unverändert, versioniert, `immutable`; MapLibre-Fallen

@@ -33,6 +33,7 @@ flowchart LR
 | Speicherung | SQLite und FIT-Archiv unter `/data` | Teil der Home-Assistant-Backups |
 | UI-Einbindung | Home-Assistant-Ingress (Seitenleiste) | Authentifizierung durch Home Assistant, kein offener Port |
 | Frontend | Go-Templates, htmx, MapLibre GL JS, uPlot, ohne Node-Build | einfache Toolchain |
+| Oberfläche | mobile first, Design-Tokens hell/dunkel (hell Standard), Aktivitätskacheln mit serverseitiger SVG-Mini-Route ([internal/routesvg](../internal/routesvg)) | lesbar auf dem Handy, keine Kartenkosten für Listen ([UI-Konzept](ui-konzept.md)) |
 | Karten | MapTiler als Standard, optional Luftbild Bayern (DOP40, CC BY 4.0) | sauber lizenziert; Anbieter konfigurierbar |
 
 ## Identität und idempotenter Import

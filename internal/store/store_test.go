@@ -325,3 +325,22 @@ func TestTracksOnlyWithGeometry(t *testing.T) {
 		t.Errorf("filtered tracks %+v", runs)
 	}
 }
+
+func TestPolylinesByID(t *testing.T) {
+	ctx := context.Background()
+	s := newStore(t)
+	ids := seed(t, s, item{"cycling", "2026-05-01 10:00"})
+	indoor := recording("fit:1:1:indoor", "y", 1)
+	indoor.Track = nil
+	indoorID, _, err := s.SaveRecording(ctx, indoor)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := s.Polylines(ctx, []int64{ids[0], indoorID, 999})
+	if err != nil || len(got) != 1 || got[ids[0]] == "" {
+		t.Fatalf("polylines %v %v", got, err)
+	}
+	if got, err := s.Polylines(ctx, nil); err != nil || len(got) != 0 {
+		t.Errorf("empty ids: %v %v", got, err)
+	}
+}

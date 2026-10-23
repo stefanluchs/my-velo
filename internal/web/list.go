@@ -12,7 +12,8 @@ import (
 	"github.com/stefanluchs/my-velo/internal/store"
 )
 
-const listPageSize = 50
+// listPageSize is divisible by 2 and 3, the column counts of the tile grid.
+const listPageSize = 24
 
 // listQuery is the parsed, validated filter of the activity list. Invalid
 // values are ignored instead of rejected, so a stale bookmark still works.
@@ -89,42 +90,77 @@ type listData struct {
 	Query      listQuery
 	Categories []sport.Category
 	Years      []int
-	Activities []store.Activity
+	Items      []feedItem
 	Totals     store.Totals
-	Pages      int
-	PrevURL    string
 	NextURL    string
+	// Filtered is true when any filter is active.
+	Filtered bool
+	// ActiveCategory is the selected category, if any.
+	ActiveCategory *sport.Category
 }
+
+// fragmentFeed renders only the next page of tiles for infinite scrolling.
+const fragmentFeed = "activityFeed"
 
 func (s *server) activities(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	lq := parseListQuery(r.URL.Query())
 	f := lq.Filter()
+	// htmx requests append the next page to the list already shown.
+	appendPage := r.Header.Get("HX-Request") == "true"
 
 	totals, err := s.Store.Totals(ctx, f)
 	if err != nil {
 		s.serverError(w, "sum activities", err)
 		return
 	}
-	years, err := s.Store.Years(ctx)
+	months, err := s.Store.Aggregate(ctx, f, store.ByMonth)
 	if err != nil {
-		s.serverError(w, "list years", err)
+		s.serverError(w, "sum months", err)
 		return
 	}
+	monthTotals := make(map[string]store.Totals, len(months))
+	for _, m := range months {
+		monthTotals[m.Key] = m.Totals
+	}
+
+	// One activity more in front tells whether the first tile starts a new
+	// month on an appended page.
 	f.Limit, f.Offset = listPageSize, (lq.Page-1)*listPageSize
+	if appendPage && f.Offset > 0 {
+		f.Limit, f.Offset = f.Limit+1, f.Offset-1
+	}
 	list, err := s.Store.List(ctx, f)
 	if err != nil {
 		s.serverError(w, "list activities", err)
 		return
 	}
-
-	d := listData{Query: lq, Categories: sport.Categories, Years: years, Activities: list, Totals: totals,
-		Pages: max(1, (totals.Count+listPageSize-1)/listPageSize)}
-	if lq.Page > 1 {
-		d.PrevURL = lq.URL(lq.Page - 1)
+	prevMonth := ""
+	if appendPage && lq.Page > 1 && len(list) > 0 {
+		prevMonth = monthKey(list[0])
+		list = list[1:]
 	}
-	if lq.Page < d.Pages {
+	tiles, err := s.tiles(ctx, list)
+	if err != nil {
+		s.serverError(w, "load tracks", err)
+		return
+	}
+
+	d := listData{Query: lq, Categories: sport.Categories, Items: feed(tiles, prevMonth, monthTotals), Totals: totals,
+		Filtered: lq.Category != "" || lq.Year != 0 || lq.From != "" || lq.To != ""}
+	if c, ok := sport.ByID(lq.Category); ok {
+		d.ActiveCategory = &c
+	}
+	if lq.Page*listPageSize < totals.Count {
 		d.NextURL = lq.URL(lq.Page + 1)
+	}
+	if appendPage {
+		s.renderFragment(w, fragmentFeed, d)
+		return
+	}
+	if d.Years, err = s.Store.Years(ctx); err != nil {
+		s.serverError(w, "list years", err)
+		return
 	}
 	s.render(w, r, "activities.html", "activities", d)
 }

@@ -38,6 +38,9 @@ func TestCalendarHelpers(t *testing.T) {
 	if signedKm(12.4) != "+12" || signedKm(-3.6) != "−4" || signedKm(0.2) != "±0" {
 		t.Error("signedKm")
 	}
+	if thousands(129286) != "129.286" || thousands(-1234) != "−1.234" || thousands(999) != "999" || kmInt(15019400) != "15.019" {
+		t.Error("thousands")
+	}
 }
 
 func postGoal(env *testEnv, values url.Values) *httptest.ResponseRecorder {
@@ -52,14 +55,25 @@ func TestDashboard(t *testing.T) {
 	env.importFixtures(t, 2) // 2026-05-01 and 2026-05-02, 0,48 km each
 
 	body := env.do(ingressGET("/")).Body.String()
-	for _, want := range []string{"Diese Woche", "Dieser Monat", "Dieses Jahr", "<strong>1,0</strong> km", "Ziel festlegen", "Letzte Aktivitäten", `class="chip active" href="./?cat=bike"`} {
+	for _, want := range []string{"Diese Woche", "<strong>1,0</strong> km", "Ziel festlegen", "Letzte Aktivitäten", `class="chip active" href="./?cat=bike"`,
+		`aria-current="true">Woche</a>`, `class="sparkline"`, `class="tile cat-bike"`} {
 		if !strings.Contains(body, want) {
 			t.Errorf("dashboard missing %q", want)
 		}
 	}
 	// Week of 2026-05-03 (Sunday) starts Monday 2026-04-27 and includes both rides.
-	if strings.Count(body, "<strong>1,0</strong> km") != 3 {
-		t.Errorf("week, month and year should all show 1,0 km")
+	for p, label := range map[string]string{"week": "Diese Woche", "month": "Dieser Monat", "year": "Dieses Jahr"} {
+		body := env.do(ingressGET("/?cat=bike&p=" + p)).Body.String()
+		if !strings.Contains(body, label) || strings.Count(body, "<strong>1,0</strong> km") != 1 {
+			t.Errorf("%s should show 1,0 km once", p)
+		}
+		if p != "week" && !strings.Contains(body, `href="./?cat=run&amp;p=`+p+`"`) {
+			t.Errorf("%s: category chips must keep the period", p)
+		}
+	}
+	// The current week holds both rides: the last sparkline bar is full height.
+	if !strings.Contains(body, `y="0" width="16.3" height="56" rx="2" class="current"><title>KW 18: 1,0 km</title>`) {
+		t.Errorf("sparkline: current week must be the full-height bar")
 	}
 
 	if w := postGoal(env, url.Values{"cat": {"bike"}, "km": {"365"}}); w.Code != http.StatusNoContent || w.Header().Get("HX-Refresh") != "true" {
@@ -67,7 +81,7 @@ func TestDashboard(t *testing.T) {
 	}
 	body = env.do(ingressGET("/")).Body.String()
 	// Day 123 of 365 → 123 km expected; actual 1 km.
-	for _, want := range []string{"Jahresziel 365 km", "Soll heute 123 km", "−122 km"} {
+	for _, want := range []string{"Jahresziel 365 km", "Soll heute</span> <strong>123 km", "−122 km", `class="goal-ring"`, `aria-valuenow="0"`} {
 		if !strings.Contains(body, want) {
 			t.Errorf("goal missing %q", want)
 		}

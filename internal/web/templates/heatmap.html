@@ -7,8 +7,10 @@
 {{define "content"}}{{with .Data}}
 <div class="heatmap-layout">
   <form id="heatmap-filter" class="heatmap-panel" aria-label="Heatmap-Filter">
-    <h1>Heatmap</h1>
-    <p id="heatmap-info" class="hint">Tracks werden geladen …</p>
+    <div class="sheet-head">
+      <h1>Heatmap</h1>
+      <button type="button" class="button ghost sheet-close" data-action="sheet" aria-controls="heatmap-filter">Fertig</button>
+    </div>
 
     <fieldset>
       <legend>Sport</legend>
@@ -38,10 +40,16 @@
       <label><input type="checkbox" name="dim" checked> Karte abdunkeln</label>
     </fieldset>
 
-    <p><button type="button" data-action="fit">Auf Auswahl zoomen</button></p>
+    <p><button type="button" class="secondary" data-action="fit">Auf Auswahl zoomen</button></p>
     <p class="hint">Klick auf einen Track zeigt die Aktivitäten an dieser Stelle.</p>
   </form>
-  <div id="map" class="map heatmap-map" aria-label="Heatmap"></div>
+  <div class="heatmap-stage">
+    <div class="heatmap-toolbar">
+      <p id="heatmap-info" class="pill">Tracks werden geladen …</p>
+      <button type="button" class="pill sheet-open" data-action="sheet" aria-controls="heatmap-filter" aria-expanded="false">{{icon "filter"}} Filter</button>
+    </div>
+    <div id="map" class="map heatmap-map" aria-label="Heatmap"></div>
+  </div>
 </div>
 
 <script type="application/json" id="map-config">{{.MapConfig.JSON}}</script>

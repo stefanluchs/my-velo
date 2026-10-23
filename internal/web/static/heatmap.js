@@ -13,6 +13,7 @@ export async function showHeatmap() {
   const form = document.getElementById("heatmap-filter");
   const info = document.getElementById("heatmap-info");
   const categories = JSON.parse(document.getElementById("categories").textContent);
+  wireSheet(form);
 
   let data;
   try {
@@ -91,6 +92,17 @@ export async function showHeatmap() {
   for (const id of LAYERS) {
     map.on("mouseenter", id, () => (map.getCanvas().style.cursor = "pointer"));
     map.on("mouseleave", id, () => (map.getCanvas().style.cursor = ""));
+  }
+}
+
+/** Mobile: the filter form is a bottom sheet opened from the map toolbar. */
+function wireSheet(form) {
+  const opener = document.querySelector(".sheet-open");
+  for (const btn of document.querySelectorAll("[data-action=sheet]")) {
+    btn.addEventListener("click", () => {
+      const open = form.classList.toggle("open");
+      opener?.setAttribute("aria-expanded", String(open));
+    });
   }
 }
 
