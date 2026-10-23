@@ -26,20 +26,21 @@ const maxZipDepth = 2
 // "export.zip!DI_CONNECT/…/UploadedFiles_0-_Part1.zip!123_456.fit".
 type Source struct {
 	Path string
-	// GarminActivityID is a hint derived from the file name, if it ends in a
-	// long number (Garmin names original files after the activity id).
-	GarminActivityID string
+	// FileNumber is the long number at the end of the file name, if any. In the
+	// Garmin bulk export (<e-mail>_<number>.fit) it identifies the uploaded
+	// file, NOT the Garmin Connect activity ID (verified 23.10.2026, spike S2).
+	FileNumber string
 }
 
 // VisitFunc receives every FIT file. Returning an error aborts the walk.
 type VisitFunc func(src Source, r io.Reader) error
 
-var activityIDPattern = regexp.MustCompile(`(\d{6,})(?:_activity)?\.fit$`)
+var fileNumberPattern = regexp.MustCompile(`(\d{6,})(?:_activity)?\.fit$`)
 
 func newSource(path string) Source {
 	src := Source{Path: path}
-	if m := activityIDPattern.FindStringSubmatch(strings.ToLower(path)); m != nil {
-		src.GarminActivityID = m[1]
+	if m := fileNumberPattern.FindStringSubmatch(strings.ToLower(path)); m != nil {
+		src.FileNumber = m[1]
 	}
 	return src
 }

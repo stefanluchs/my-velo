@@ -9,6 +9,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -21,10 +22,13 @@ import (
 
 type entry struct {
 	Source string `json:"source"`
-	// GarminActivityID is only a hint derived from the file name.
-	GarminActivityID string           `json:"garmin_activity_id,omitempty"`
-	Summary          *fitfile.Summary `json:"summary,omitempty"`
-	Error            string           `json:"error,omitempty"`
+	// Skipped marks valid FIT files that are no activities (monitoring, sleep …).
+	Skipped bool `json:"skipped,omitempty"`
+	// FileNumber is the number in the file name (Garmin export: upload file
+	// number, not the activity ID).
+	FileNumber string           `json:"file_number,omitempty"`
+	Summary    *fitfile.Summary `json:"summary,omitempty"`
+	Error      string           `json:"error,omitempty"`
 }
 
 func main() {
@@ -42,9 +46,10 @@ func main() {
 	var entries []entry
 	for _, root := range flag.Args() {
 		err := fitfile.Walk(root, func(src fitfile.Source, r io.Reader) error {
-			e := entry{Source: src.Path, GarminActivityID: src.GarminActivityID}
+			e := entry{Source: src.Path, FileNumber: src.FileNumber}
 			if s, err := fitfile.Parse(r); err != nil {
 				e.Error = err.Error()
+				e.Skipped = errors.Is(err, fitfile.ErrNotActivity)
 			} else {
 				e.Summary = &s
 			}
@@ -71,10 +76,14 @@ func printTable(out io.Writer, entries []entry) {
 	tw := tabwriter.NewWriter(out, 0, 0, 2, ' ', 0)
 	fmt.Fprintln(tw, "START (UTC)\tSPORT\tKM\tDAUER\tHM\tREC\tGPS\tHF\tWATT\tKEY\tQUELLE")
 	byKey := map[string][]string{}
-	errors := 0
+	failed, skipped := 0, 0
 	for _, e := range entries {
+		if e.Skipped {
+			skipped++
+			continue
+		}
 		if e.Summary == nil {
-			errors++
+			failed++
 			fmt.Fprintf(tw, "–\t–\t–\t–\t–\t–\t–\t–\t–\tFEHLER: %s\t%s\n", e.Error, e.Source)
 			continue
 		}
@@ -87,8 +96,8 @@ func printTable(out io.Writer, entries []entry) {
 	}
 	_ = tw.Flush()
 
-	fmt.Fprintf(out, "\nDateien: %d · gelesen: %d · Fehler: %d · eindeutige Aufzeichnungen: %d\n",
-		len(entries), len(entries)-errors, errors, len(byKey))
+	fmt.Fprintf(out, "\nDateien: %d · Aktivitäten: %d · keine Aktivität (übersprungen): %d · Fehler: %d · eindeutige Aufzeichnungen: %d\n",
+		len(entries), len(entries)-failed-skipped, skipped, failed, len(byKey))
 
 	var dupKeys []string
 	for k, srcs := range byKey {

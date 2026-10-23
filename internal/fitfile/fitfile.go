@@ -14,6 +14,7 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"math"
@@ -121,17 +122,27 @@ func ReadAll(r io.Reader) ([]byte, error) {
 	return raw, nil
 }
 
+// ErrNotActivity marks valid FIT files that are not activities, e.g. the
+// daily monitoring, sleep or settings files of a Garmin bulk export.
+var ErrNotActivity = errors.New("not an activity file")
+
 // Decode decodes a complete FIT activity file.
 func Decode(raw []byte) (*Activity, error) {
+	// A Garmin export holds about 40 non-activity files per activity; peeking
+	// at file_id avoids decoding them completely.
+	id, err := decoder.New(bytes.NewReader(raw)).PeekFileId()
+	if err != nil {
+		return nil, fmt.Errorf("decode: %w", err)
+	}
+	if id.Type != typedef.FileActivity {
+		return nil, fmt.Errorf("%w (type %s)", ErrNotActivity, id.Type)
+	}
 	sum := sha256.Sum256(raw)
 	fit, err := decoder.New(bytes.NewReader(raw)).Decode()
 	if err != nil {
 		return nil, fmt.Errorf("decode: %w", err)
 	}
 	act := filedef.NewActivity(fit.Messages...)
-	if act.FileId.Type != typedef.FileActivity {
-		return nil, fmt.Errorf("not an activity file (type %s)", act.FileId.Type)
-	}
 
 	s := Summary{
 		SHA256:         hex.EncodeToString(sum[:]),

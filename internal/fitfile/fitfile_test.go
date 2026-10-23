@@ -4,6 +4,7 @@ package fitfile
 
 import (
 	"bytes"
+	"errors"
 	"strings"
 	"testing"
 	"time"
@@ -117,7 +118,7 @@ func TestAbortedRecordingFallsBackToRecords(t *testing.T) {
 func TestRejectsNonActivityAndGarbage(t *testing.T) {
 	f := defaultFixture()
 	f.FileType = typedef.FileCourse
-	if _, err := Parse(bytes.NewReader(encode(t, f))); err == nil || !strings.Contains(err.Error(), "not an activity") {
+	if _, err := Parse(bytes.NewReader(encode(t, f))); !errors.Is(err, ErrNotActivity) || !strings.Contains(err.Error(), "course") {
 		t.Errorf("course file: err = %v", err)
 	}
 	if _, err := Parse(strings.NewReader("definitely not a FIT file")); err == nil {

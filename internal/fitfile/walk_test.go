@@ -89,14 +89,14 @@ func TestWalkGarminExportLayout(t *testing.T) {
 	}
 }
 
-func TestSourceActivityIDHint(t *testing.T) {
+func TestSourceFileNumber(t *testing.T) {
 	for path, want := range map[string]string{
 		"x.zip!user@example.com_12345678901.fit": "12345678901",
 		"x.zip!12345678901_ACTIVITY.fit":         "12345678901",
 		"2026-05-01-08-00-00.fit":                "",
 		"ride.FIT":                               "",
 	} {
-		if got := newSource(path).GarminActivityID; got != want {
+		if got := newSource(path).FileNumber; got != want {
 			t.Errorf("%s: id %q, want %q", path, got, want)
 		}
 	}
