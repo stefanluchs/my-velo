@@ -257,7 +257,7 @@ func TestFilterBySportsAndLocalDate(t *testing.T) {
 		{"all", ListFilter{}, 4},
 		{"local year 2026", y2026, 3},
 		{"cycling in 2026", ListFilter{Sports: []string{"cycling"}, From: y2026.From, To: y2026.To}, 1},
-		{"other = not cycling/running", ListFilter{ExcludeSports: []string{"cycling", "running"}}, 1},
+		{"category other (swimming)", ListFilter{Category: "other"}, 1},
 	}
 	for _, tt := range tests {
 		got, err := s.List(ctx, tt.f)

@@ -9,7 +9,7 @@
   {{range .}}
     <tr>
       <td><a href="activities/{{.ID}}">{{localTime .StartTime .TZOffsetS}}</a></td>
-      <td><a href="activities/{{.ID}}">{{sportIcon .Sport}} {{if .Name}}{{.Name}}{{else}}{{sportLabel .Sport .SubSport}}{{end}}</a></td>
+      <td><a href="activities/{{.ID}}">{{sportIcon .Sport .SubSport}} {{if .Name}}{{.Name}}{{else}}{{sportLabel .Sport .SubSport}}{{end}}</a></td>
       <td class="num">{{km .DistanceM}}</td>
       <td class="num">{{duration .TimerS}}</td>
       <td class="num">{{.AscentM}}</td>

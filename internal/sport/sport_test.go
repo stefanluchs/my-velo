@@ -5,31 +5,56 @@ package sport
 import "testing"
 
 func TestCategoryOf(t *testing.T) {
-	for sport, want := range map[string]string{
-		"cycling": "bike", "e_biking": "bike", "running": "run",
-		"hiking": "hike", "walking": "hike", "swimming": Other, "": Other,
+	for in, want := range map[[2]string]string{
+		{"cycling", "gravel_cycling"}:       "bike",
+		{"cycling", "generic"}:              "bike",
+		{"cycling", "indoor_cycling"}:       "indoor",
+		{"cycling", "virtual_activity"}:     "indoor",
+		{"e_biking", ""}:                    "bike",
+		{"running", "treadmill"}:            "run",
+		{"hiking", "generic"}:               "hike",
+		{"snowshoeing", "generic"}:          "hike",
+		{"fitness_equipment", "elliptical"}: "fitness",
+		{"training", "yoga"}:                "fitness",
+		{"rowing", "indoor_rowing"}:         "fitness",
+		{"rowing", "generic"}:               Other,
+		{"swimming", "lap_swimming"}:        Other,
+		{"", ""}:                            Other,
 	} {
-		if got := CategoryOf(sport).ID; got != want {
-			t.Errorf("CategoryOf(%q) = %s, want %s", sport, got, want)
+		if got := CategoryOf(in[0], in[1]).ID; got != want {
+			t.Errorf("CategoryOf(%v) = %s, want %s", in, got, want)
 		}
+	}
+	if Icon("cycling", "indoor_cycling") != "🏠" {
+		t.Error("icon of indoor ride")
 	}
 }
 
-func TestCategoriesAreDisjoint(t *testing.T) {
-	seen := map[string]string{}
+func TestSpecificRulesAreUnique(t *testing.T) {
+	seen := map[[2]string]string{}
+	wide := map[string]string{}
 	for _, c := range Categories {
-		for _, s := range c.Sports {
-			if prev, ok := seen[s]; ok {
-				t.Errorf("sport %s in %s and %s", s, prev, c.ID)
+		for _, r := range c.Rules {
+			if len(r.SubSports) == 0 {
+				if prev, ok := wide[r.Sport]; ok {
+					t.Errorf("sport %s in %s and %s", r.Sport, prev, c.ID)
+				}
+				wide[r.Sport] = c.ID
 			}
-			seen[s] = c.ID
+			for _, s := range r.SubSports {
+				k := [2]string{r.Sport, s}
+				if prev, ok := seen[k]; ok {
+					t.Errorf("%v in %s and %s", k, prev, c.ID)
+				}
+				seen[k] = c.ID
+			}
 		}
-	}
-	if len(KnownSports()) != len(seen) {
-		t.Error("KnownSports mismatch")
 	}
 	if _, ok := ByID(Other); !ok {
 		t.Error("catch-all category missing")
+	}
+	if cond, _ := Condition("nope"); cond != "0" {
+		t.Error("unknown category must match nothing")
 	}
 }
 

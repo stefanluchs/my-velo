@@ -4,14 +4,24 @@
 // statistics and the heatmap, and provides German display labels.
 package sport
 
+import "strings"
+
+// Rule matches activities of a FIT sport. With SubSports it matches only
+// those sub-sports and takes precedence over rules without SubSports, so
+// "cycling/indoor_cycling" can belong to another category than "cycling".
+type Rule struct {
+	Sport     string
+	SubSports []string
+}
+
 // Category is a user-facing group of sports.
 type Category struct {
 	ID    string
 	Label string
 	Icon  string
-	// Sports lists the FIT sport names belonging to the category. The
-	// category "other" has none and matches everything not listed elsewhere.
-	Sports []string
+	// Rules select the activities of the category. The category "other" has
+	// none and matches everything not matched elsewhere.
+	Rules []Rule
 	// Color is used for the category on maps.
 	Color string
 }
@@ -21,9 +31,17 @@ const Other = "other"
 
 // Categories in display order.
 var Categories = []Category{
-	{ID: "bike", Label: "Rad", Icon: "🚴", Sports: []string{"cycling", "e_biking"}, Color: "#e8590c"},
-	{ID: "run", Label: "Laufen", Icon: "🏃", Sports: []string{"running"}, Color: "#7048e8"},
-	{ID: "hike", Label: "Wandern & Gehen", Icon: "🥾", Sports: []string{"hiking", "walking"}, Color: "#2b8a3e"},
+	{ID: "bike", Label: "Rad", Icon: "🚴", Color: "#e8590c", Rules: []Rule{{Sport: "cycling"}, {Sport: "e_biking"}}},
+	{ID: "indoor", Label: "Indoor-Rad", Icon: "🏠", Color: "#f59f00", Rules: []Rule{
+		{Sport: "cycling", SubSports: []string{"indoor_cycling", "virtual_activity", "spin"}},
+	}},
+	{ID: "run", Label: "Laufen", Icon: "🏃", Color: "#7048e8", Rules: []Rule{{Sport: "running"}}},
+	{ID: "hike", Label: "Wandern & Gehen", Icon: "🥾", Color: "#2b8a3e", Rules: []Rule{
+		{Sport: "hiking"}, {Sport: "walking"}, {Sport: "snowshoeing"},
+	}},
+	{ID: "fitness", Label: "Fitness", Icon: "🏋️", Color: "#c2255c", Rules: []Rule{
+		{Sport: "fitness_equipment"}, {Sport: "training"}, {Sport: "rowing", SubSports: []string{"indoor_rowing"}},
+	}},
 	{ID: Other, Label: "Sonstige", Icon: "⏱️", Color: "#1c7ed6"},
 }
 
@@ -37,27 +55,101 @@ func ByID(id string) (Category, bool) {
 	return Category{}, false
 }
 
-// CategoryOf returns the category of a FIT sport.
-func CategoryOf(sport string) Category {
-	for _, c := range Categories {
-		for _, s := range c.Sports {
-			if s == sport {
+// CategoryOf returns the category of an activity.
+func CategoryOf(sport, subSport string) Category {
+	var wide *Category
+	for i, c := range Categories {
+		for _, r := range c.Rules {
+			if r.Sport != sport {
+				continue
+			}
+			if len(r.SubSports) == 0 {
+				if wide == nil {
+					wide = &Categories[i]
+				}
+			} else if contains(r.SubSports, subSport) {
 				return c
 			}
 		}
+	}
+	if wide != nil {
+		return *wide
 	}
 	c, _ := ByID(Other)
 	return c
 }
 
-// KnownSports returns all sports assigned to a named category; used to
-// express the "other" category as "none of these".
-func KnownSports() []string {
+// specificSubSports returns the sub-sports of sport claimed by rules with
+// SubSports in any category.
+func specificSubSports(sport string) []string {
 	var out []string
 	for _, c := range Categories {
-		out = append(out, c.Sports...)
+		for _, r := range c.Rules {
+			if r.Sport == sport && len(r.SubSports) > 0 {
+				out = append(out, r.SubSports...)
+			}
+		}
 	}
 	return out
+}
+
+// Condition returns an SQL condition over the columns sport and sub_sport
+// that selects the category exactly like CategoryOf, with its arguments.
+func Condition(categoryID string) (string, []any) {
+	c, ok := ByID(categoryID)
+	if !ok {
+		return "0", nil
+	}
+	if c.ID == Other {
+		var parts []string
+		var args []any
+		for _, cat := range Categories {
+			if cat.ID == Other {
+				continue
+			}
+			cond, a := rulesCondition(cat.Rules)
+			parts = append(parts, cond)
+			args = append(args, a...)
+		}
+		return "NOT (" + strings.Join(parts, " OR ") + ")", args
+	}
+	return rulesCondition(c.Rules)
+}
+
+func rulesCondition(rules []Rule) (string, []any) {
+	var parts []string
+	var args []any
+	for _, r := range rules {
+		subs := r.SubSports
+		in := "IN"
+		if len(subs) == 0 {
+			// Sport-wide rule: everything except sub-sports claimed elsewhere.
+			subs, in = specificSubSports(r.Sport), "NOT IN"
+		}
+		if len(subs) == 0 {
+			parts = append(parts, "sport = ?")
+			args = append(args, r.Sport)
+			continue
+		}
+		parts = append(parts, "(sport = ? AND sub_sport "+in+" ("+strings.TrimSuffix(strings.Repeat("?,", len(subs)), ",")+"))")
+		args = append(args, r.Sport)
+		for _, s := range subs {
+			args = append(args, s)
+		}
+	}
+	if len(parts) == 0 {
+		return "0", nil
+	}
+	return "(" + strings.Join(parts, " OR ") + ")", args
+}
+
+func contains(list []string, v string) bool {
+	for _, x := range list {
+		if x == v {
+			return true
+		}
+	}
+	return false
 }
 
 // labels maps FIT sport/sub-sport names to German labels. Sub-sport entries
@@ -115,5 +207,5 @@ func Label(sport, subSport string) string {
 	return sport
 }
 
-// Icon returns the emoji of the sport's category.
-func Icon(sport string) string { return CategoryOf(sport).Icon }
+// Icon returns the emoji of the activity's category.
+func Icon(sport, subSport string) string { return CategoryOf(sport, subSport).Icon }

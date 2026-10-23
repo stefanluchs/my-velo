@@ -44,7 +44,7 @@ func TestParseListQuery(t *testing.T) {
 		t.Errorf("parsed %+v", lq)
 	}
 	f := lq.Filter()
-	if len(f.Sports) != 2 || !f.From.Equal(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)) || !f.To.Equal(time.Date(2027, 1, 1, 0, 0, 0, 0, time.UTC)) {
+	if f.Category != "bike" || !f.From.Equal(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)) || !f.To.Equal(time.Date(2027, 1, 1, 0, 0, 0, 0, time.UTC)) {
 		t.Errorf("filter %+v", f)
 	}
 	if lq.URL(4) != "activities?cat=bike&page=4&year=2026" {
@@ -53,7 +53,7 @@ func TestParseListQuery(t *testing.T) {
 
 	q, _ = url.ParseQuery("cat=other&year=2026&from=2026-05-01&to=2026-05-31&cat=x")
 	f = parseListQuery(q).Filter()
-	if len(f.ExcludeSports) == 0 || !f.From.Equal(time.Date(2026, 5, 1, 0, 0, 0, 0, time.UTC)) || !f.To.Equal(time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)) {
+	if f.Category != "other" || !f.From.Equal(time.Date(2026, 5, 1, 0, 0, 0, 0, time.UTC)) || !f.To.Equal(time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)) {
 		t.Errorf("date range must win over year and include the end day: %+v", f)
 	}
 	if lq := parseListQuery(url.Values{"cat": {"nope"}, "year": {"12"}, "page": {"-1"}}); lq != (listQuery{Page: 1}) {

@@ -45,12 +45,8 @@ type GoalProgress struct {
 
 func categoryFilter(catID string) store.ListFilter {
 	var f store.ListFilter
-	if c, ok := sport.ByID(catID); ok {
-		if c.ID == sport.Other {
-			f.ExcludeSports = sport.KnownSports()
-		} else {
-			f.Sports = c.Sports
-		}
+	if _, ok := sport.ByID(catID); ok {
+		f.Category = catID
 	}
 	return f
 }

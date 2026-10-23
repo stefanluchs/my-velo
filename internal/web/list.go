@@ -46,14 +46,7 @@ func parseListQuery(q url.Values) listQuery {
 // Filter converts the query into a store filter. An explicit date range
 // takes precedence over the year.
 func (lq listQuery) Filter() store.ListFilter {
-	var f store.ListFilter
-	if c, ok := sport.ByID(lq.Category); ok {
-		if c.ID == sport.Other {
-			f.ExcludeSports = sport.KnownSports()
-		} else {
-			f.Sports = c.Sports
-		}
-	}
+	f := categoryFilter(lq.Category)
 	if lq.From != "" || lq.To != "" {
 		if t, err := time.Parse(time.DateOnly, lq.From); err == nil {
 			f.From = t

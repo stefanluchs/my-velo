@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/stefanluchs/my-velo/internal/sport"
 )
 
 // ErrNotFound is returned when an activity does not exist.
@@ -207,9 +209,8 @@ func updateActivity(ctx context.Context, tx *sql.Tx, id int64, a Activity, now i
 type ListFilter struct {
 	// Sports keeps activities whose sport is listed.
 	Sports []string
-	// ExcludeSports drops activities whose sport is listed (used for the
-	// "other" category).
-	ExcludeSports []string
+	// Category keeps activities of a sport.Category (by sport and sub-sport).
+	Category string
 	// From and To bound the start on the local wall clock of the activity:
 	// From inclusive, To exclusive. Pass dates in UTC, e.g. 2026-01-01T00:00Z
 	// for "1 January local time".
@@ -227,11 +228,10 @@ func (f ListFilter) where() (string, []any) {
 			args = append(args, s)
 		}
 	}
-	if len(f.ExcludeSports) > 0 {
-		conds = append(conds, `sport NOT IN (`+placeholders(len(f.ExcludeSports))+`)`)
-		for _, s := range f.ExcludeSports {
-			args = append(args, s)
-		}
+	if f.Category != "" {
+		cond, a := sport.Condition(f.Category)
+		conds = append(conds, cond)
+		args = append(args, a...)
 	}
 	if !f.From.IsZero() {
 		conds = append(conds, `start_time + tz_offset_s >= ?`)

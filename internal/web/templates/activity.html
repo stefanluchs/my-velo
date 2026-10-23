@@ -6,7 +6,7 @@
 
 {{define "activityTitle"}}
 <div id="activity-title" class="activity-title">
-  <h1>{{sportIcon .Activity.Sport}} {{.Title}}</h1>
+  <h1>{{sportIcon .Activity.Sport .Activity.SubSport}} {{.Title}}</h1>
   <details class="rename">
     <summary>umbenennen</summary>
     <form hx-post="activities/{{.Activity.ID}}/name" hx-target="#activity-title" hx-swap="outerHTML">

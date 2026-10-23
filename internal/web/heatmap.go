@@ -80,7 +80,7 @@ func (s *server) tracks(w http.ResponseWriter, r *http.Request) {
 			ID:       t.ID,
 			Geometry: trackGeometry{Type: "LineString", Coordinates: coords},
 			Properties: trackProps{
-				ID: t.ID, Cat: sport.CategoryOf(t.Sport).ID, Label: label,
+				ID: t.ID, Cat: sport.CategoryOf(t.Sport, t.SubSport).ID, Label: label,
 				T: t.StartTime.Unix() + int64(t.TZOffsetS), Km: math.Round(t.DistanceM/100) / 10,
 			},
 		})
