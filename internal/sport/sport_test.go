@@ -35,10 +35,12 @@ func TestCategoriesAreDisjoint(t *testing.T) {
 
 func TestLabel(t *testing.T) {
 	cases := map[[2]string]string{
-		{"cycling", "gravel_cycling"}: "Gravel",
-		{"cycling", "generic"}:        "Radfahren",
-		{"kitesurfing", ""}:           "kitesurfing",
-		{"", ""}:                      "Unbekannt",
+		{"cycling", "gravel_cycling"}:       "Gravel",
+		{"cycling", "generic"}:              "Radfahren",
+		{"kitesurfing", ""}:                 "kitesurfing",
+		{"", ""}:                            "Unbekannt",
+		{"fitness_equipment", "elliptical"}: "Crosstrainer",
+		{"rowing", "indoor_rowing"}:         "Rudergerät",
 	}
 	for in, want := range cases {
 		if got := Label(in[0], in[1]); got != want {
