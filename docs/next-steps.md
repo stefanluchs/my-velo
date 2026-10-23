@@ -14,7 +14,7 @@ Wissensspeicher [knowledge/](knowledge/00-index/index.md) – vor größeren Än
 | Phase 0 – Spikes | ✅ abgeschlossen am 23.10.2026 ([spikes/](spikes/README.md)) |
 | Phase 1 – MVP | 🟡 1.1–1.8 ✅, Sync seit `v0.6.0` über die Personal API (E7); 1.9 zurückgestellt (keine Doppelaufzeichnungen); offen: Abnahme des Syncs auf dem Pi |
 | Phase 2 – Analysen | 🟡 begonnen: Kategorien Indoor-Rad/Fitness und Eddington-Zahl ✅ (`v0.6.0`); als Nächstes Explorer-Tiles, Bestleistungen, HF-Zonen |
-| UI-Überarbeitung (mobile first, Light/Dark) | 📝 Konzept [ui-konzept.md](ui-konzept.md), wartet auf Entscheidungen |
+| UI-Überarbeitung (mobile first, Light/Dark) | 📝 Konzept [ui-konzept.md](ui-konzept.md) abgestimmt; Umsetzung U1–U5 als `v0.7.0`, danach Phase 2 |
 
 Vorhanden im Repository:
 
