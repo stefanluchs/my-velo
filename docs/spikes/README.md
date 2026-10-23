@@ -7,7 +7,7 @@ Punkte.
 
 | Spike | Frage | Status |
 |---|---|---|
-| [S1 – Garmin-Fetcher](s1-garmin-fetch.md) | Lassen sich neue Aktivitäten als Original-FIT ohne Drittplattform automatisch abholen, inkl. MFA? | ✅ Live-Test bestanden, Token-Erneuerung (≥ 24 h) offen |
+| [S1 – Garmin-Fetcher](s1-garmin-fetch.md) | Lassen sich neue Aktivitäten als Original-FIT ohne Drittplattform automatisch abholen, inkl. MFA? | ✅ abgeschlossen (Login, Sync, Tokens nach 22½ h gültig) |
 | [S2 – FIT-Parsing](s2-fit-parsing.md) | Liefert `muktihari/fit` alle Daten und einen stabilen Schlüssel für idempotente Importe? | ✅ abgeschlossen (eigener Export: 808 Aktivitäten, keine Duplikate) |
 | [S3 – Ingress-Add-on](s3-ingress-addon.md) | Läuft ein Go-Server als Add-on korrekt hinter dem Home-Assistant-Ingress? | ✅ abgeschlossen, Abnahme auf dem Pi bestanden |
 
@@ -17,6 +17,6 @@ Die Architektur trägt: Go-Server hinter Ingress, FIT als einheitliches Importfo
 Schlüssel und ein isolierter Python-Fetcher für Garmin Connect. Das aarch64-Image entsteht ohne
 Emulation. Für den Abschluss von Phase 0 fehlen nur Prüfungen mit echten Daten bzw. auf dem Pi:
 
-1. ~~**S1 Live-Test**~~ – ✅ Login und Download bestanden; offen nur `status` nach ≥ 24 h (Token-Erneuerung).
+1. ~~**S1 Live-Test**~~ – ✅ Login, Download und Token-Gültigkeit (23.10.2026) bestanden.
 2. ~~**S2** mit dem eigenen Garmin-Gesamtexport~~ – ✅ am 23.10.2026 abgeschlossen.
 3. ~~**S3 Abnahme** auf dem Raspberry Pi~~ – ✅ bestanden am 22.10.2026.

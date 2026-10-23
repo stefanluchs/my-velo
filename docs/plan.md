@@ -253,7 +253,7 @@ Bedingungen das meist untersagen. Gecacht wird nur im Browser.
 
 | Phase | Inhalt | Ergebnis | Größe |
 |---|---|---|---|
-| 0 – Spikes & Entscheidungen | S1 Garmin-Fetcher (Login mit MFA, Token-Laufzeit, Aktivitätsliste, Original-FIT-Download, aarch64-Build mit `curl_cffi`); S2 Garmin-Bulk-Export anfordern, Dateinamen/`file_id` prüfen und Edge-550-FIT mit `muktihari/fit` parsen; S3 Go-„Hello World“-Add-on mit Ingress-Basispfad; S4 optional Dreeve per FIT-Import als Referenz | ✅ technisch erledigt, Prüfungen mit echten Daten offen ([next-steps.md](next-steps.md)) | S |
+| 0 – Spikes & Entscheidungen | S1 Garmin-Fetcher (Login mit MFA, Token-Laufzeit, Aktivitätsliste, Original-FIT-Download, aarch64-Build mit `curl_cffi`); S2 Garmin-Bulk-Export anfordern, Dateinamen/`file_id` prüfen und Edge-550-FIT mit `muktihari/fit` parsen; S3 Go-„Hello World“-Add-on mit Ingress-Basispfad; S4 optional Dreeve per FIT-Import als Referenz | ✅ abgeschlossen am 23.10.2026 ([spikes/](spikes/README.md)) | S |
 | 1 – MVP | Add-on-Gerüst, SQLite-Schema, FIT-Import (Upload + Bulk), Garmin-Sync, Liste, Detail mit Karte und Charts, Wochen-/Monats-/Jahresstatistik, Heatmap mit Typ-/Zeitraumfilter, Polling | nutzbares Panel ab 2026 | M–L |
 | 2 – Analysen | Power-Curve/Bestwerte, Zonen, Jahresvergleich und Ziele, Eddington, Explorer-Tiles | Leistungs- und Fortschrittsansichten | M |
 | 3 – Kontext | Material/Verschleiß, Wetter | vollständiger Funktionsumfang | M |

@@ -9,7 +9,7 @@ Den Gesamtplan mit Anforderungen, Entscheidungen und Begründungen enthält [pla
 | Phase | Status |
 |---|---|
 | Evaluierung und Entscheidungen E1–E6 | ✅ abgeschlossen ([plan.md §9](plan.md#9-entscheidungen)) |
-| Phase 0 – Spikes | ✅ abgeschlossen bis auf den 24-h-Test der Token-Erneuerung ([spikes/](spikes/README.md)) |
+| Phase 0 – Spikes | ✅ abgeschlossen am 23.10.2026 ([spikes/](spikes/README.md)) |
 | Phase 1 – MVP | 🟡 1.1–1.8 ✅ (Release `v0.5.0`, Export mit 808 Aktivitäten importiert); 1.9 zurückgestellt (keine Doppelaufzeichnungen); offen: Live-Abnahme des Garmin-Syncs auf dem Pi |
 
 Vorhanden im Repository:
@@ -31,8 +31,7 @@ unter „Ergebnisse“ ergänzen.
 
 - [x] **S3 Abnahme auf dem Pi** – ✅ bestanden am 22.10.2026 mit `v0.0.1` ([Protokoll](spikes/s3-ingress-addon.md#abnahme-auf-dem-pi-22102026))
 - [x] **S1 Live-Test** – ✅ Login und Sync von 13 Aktivitäten am 22.10.2026 ([Ergebnisse](spikes/s1-garmin-fetch.md#ergebnisse))
-  - [ ] Token-Erneuerung: frühestens am 23.10.2026 `garmin-fetch status --tokenstore ~/.myvelo-garmin`
-    ausführen; `exit=0` bestätigt den Dauerbetrieb ohne erneute Anmeldung.
+  - [x] Token-Gültigkeit: ✅ 23.10.2026, 22½ h nach dem Login `status` → Exit 0 ohne Passwort.
 - [x] **S2 mit eigenem Export** – ✅ 23.10.2026: 808 Aktivitäten, alle mit FIT-Schlüssel, keine
   Doppelaufzeichnungen; Export und Sync liefern denselben Schlüssel ([Ergebnisse](spikes/s2-fit-parsing.md#ergebnisse-mit-dem-eigenen-garmin-export-23102026)).
 
