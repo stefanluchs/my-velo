@@ -2,10 +2,8 @@
 .git
 .github
 docs
-**/__pycache__
-**/*.pyc
-**/tests
+**/*_test.go
+**/jstest
 *.md
-!garmin-fetch/README.md
 data
 bin
