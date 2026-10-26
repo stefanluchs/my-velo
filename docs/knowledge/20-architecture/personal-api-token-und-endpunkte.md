@@ -12,7 +12,7 @@ sources:
   - "doc:docs/spikes/s4-personal-api.md"
   - "session:38cbacee"
 created: 2026-10-23
-updated: 2026-10-23
+updated: 2026-10-26
 supersedes: []
 superseded_by: null
 ---
@@ -27,6 +27,9 @@ superseded_by: null
 mit Header `Authorization: ApiKey <key>`. Genutzte Endpunkte mit dem Token:
 - `GET /activitylist-service/activities/search/activities?start&limit&startDate` (seitenweise)
 - `GET /download-service/files/activity/{id}` → ZIP mit `<id>_ACTIVITY.fit` (Original-FIT)
+- Gesundheit (seit `v0.11.0`, siehe `docs/spikes/s5-health-api.md`): `/usersummary-service/v2/dailysummaries`,
+  `/hrv-service/hrv/daily/{from}/{to}` (je ≤ 366 Tage), `/sleep-service/sleep/dailySleepSummariesByDate`
+  (≤ 31 Tage, sonst HTTP 400), `/weight-service/weight/range/{from}/{to}` (Gramm), `/fitnessage-service/fitnessage/v2/{date}`
 
 Die Aktivitätsliste liefert `deviceId = 0`, anders als die inoffizielle API.
 
@@ -46,6 +49,7 @@ Die Aktivitätsliste liefert `deviceId = 0`, anders als die inoffizielle API.
 - `docs/spikes/s4-personal-api.md` — Live-Ergebnisse
 
 ## Auswirkung auf die Implementierung
+- `Client.get` meldet HTTP 404 als `ErrNoFile` (Download-Semantik); andere Aufrufer müssen das umbenennen.
 - Token-Antwort nie als JSON parsen; `deviceId` aus der Liste nicht verwenden, Gerät aus FIT.
 - Schlüssel und Token nie loggen.
 

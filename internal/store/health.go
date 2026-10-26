@@ -153,3 +153,16 @@ func (s *Store) HealthDayCount(ctx context.Context) (int, error) {
 	err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM daily_health`).Scan(&n)
 	return n, err
 }
+
+// LatestHealthDate returns the most recent date with health data.
+func (s *Store) LatestHealthDate(ctx context.Context) (time.Time, bool, error) {
+	var date sql.NullString
+	if err := s.db.QueryRowContext(ctx, `SELECT MAX(date) FROM daily_health`).Scan(&date); err != nil {
+		return time.Time{}, false, err
+	}
+	if !date.Valid {
+		return time.Time{}, false, nil
+	}
+	d, err := time.Parse(time.DateOnly, date.String)
+	return d, err == nil, err
+}

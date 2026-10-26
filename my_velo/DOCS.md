@@ -4,7 +4,7 @@
 my Velo speichert und zeigt deine Sportaktivitäten lokal in Home Assistant. Quelle sind die
 Original-FIT-Dateien deiner Geräte.
 
-> **Stand 0.10.0:** Import und automatischer Abgleich über die offizielle Garmin Connect Personal
+> **Stand 0.11.0:** Import und automatischer Abgleich über die offizielle Garmin Connect Personal
 > API, Dashboard, Aktivitäten als Kacheln, Detailansicht mit Karte und Diagrammen, Statistik mit
 > Jahreszielen und Eddington-Zahl, persönliche Heatmap. Oberfläche für Handy und Desktop, hell
 > oder dunkel.
@@ -127,11 +127,12 @@ Der Tab **Gesundheit** zeigt die letzten Werte und Verläufe (30 Tage bis gesamt
 Intensitätsminuten (intensive Minuten zählen doppelt), Gewicht, VO2max, Fitnessalter, SpO2 und
 Atemfrequenz, dazu Garmins Training Readiness und Trainingsstatus.
 
-**Quelle ist der Garmin-Datenexport:** Die Export-ZIP in den Import-Ordner legen und unter
-**Mehr → Import → Ordner einlesen** importieren – FIT-Dateien und Gesundheitsdaten werden in einem
-Durchgang übernommen; ein erneuter Import ändert nichts. Ältere Werte tragen ein „Stand“-Datum.
-Training Readiness und Trainingsstatus gibt es nur im Export. Der automatische tägliche Abgleich der
-Gesundheitswerte über die Garmin-API ist in Vorbereitung.
+**Quellen:** Der **Garmin-Abgleich** (mit API-Schlüssel) lädt bei jedem Lauf die Gesundheitswerte ab
+dem letzten bekannten Tag (ohne vorhandene Daten ab `garmin_sync_since`). Für die ältere Historie die
+Export-ZIP in den Import-Ordner legen und unter **Mehr → Import → Ordner einlesen** importieren –
+FIT-Dateien und Gesundheitsdaten werden in einem Durchgang übernommen; ein erneuter Import ändert
+nichts. VO2max, Training Readiness und Trainingsstatus liefert nur der Export. Ältere Werte tragen ein
+„Stand“-Datum.
 
 ## Belastung und Zonen
 

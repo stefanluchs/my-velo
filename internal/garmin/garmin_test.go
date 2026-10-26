@@ -38,11 +38,13 @@ type fakeAPI struct {
 	rateLimited bool
 	searches    []string
 	downloads   []int64
+	health      map[string]string // health path prefix → response body
+	healthCalls []string
 	exp         time.Time
 }
 
 func newFakeAPI(t *testing.T) (*fakeAPI, *Client) {
-	f := &fakeAPI{t: t, files: map[int64][]byte{}, exp: time.Now().Add(24 * time.Hour)}
+	f := &fakeAPI{t: t, files: map[int64][]byte{}, health: map[string]string{}, exp: time.Now().Add(24 * time.Hour)}
 	srv := httptest.NewServer(f)
 	t.Cleanup(srv.Close)
 	c := NewClient(testKey, nil)
@@ -102,6 +104,13 @@ func (f *fakeAPI) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		_ = zw.Close()
 		_, _ = w.Write(buf.Bytes())
 	default:
+		for prefix, body := range f.health {
+			if strings.HasPrefix(r.URL.Path, prefix) {
+				f.healthCalls = append(f.healthCalls, r.URL.RequestURI())
+				fmt.Fprint(w, body)
+				return
+			}
+		}
 		w.WriteHeader(http.StatusNotFound)
 	}
 }
@@ -373,5 +382,56 @@ func TestServiceWithoutKey(t *testing.T) {
 	case <-done:
 	case <-time.After(time.Second):
 		t.Error("scheduler must not run without key")
+	}
+}
+
+func TestSyncFetchesHealthInChunks(t *testing.T) {
+	e := newEnv(t)
+	ctx := context.Background()
+	e.api.health[pathDailySummaries] = `{"data":[{"calendarDate":"2026-10-21","heartRate":{"restingValue":51},"movement":{"steps":{"value":9000}}}]}`
+	e.api.health[pathHRV] = `{"hrvSummaries":[{"calendarDate":"2026-10-21","lastNightAvg":60,"status":"BALANCED"}]}`
+	e.api.health[pathSleep] = `[{"calendarDate":"2026-10-21","deepSleepSeconds":3600,"lightSleepSeconds":18000,"remSleepSeconds":3600}]`
+	e.api.health[pathWeight] = `{"dailyWeightSummaries":[{"summaryDate":"2026-10-01","latestWeight":{"weight":80000}}]}`
+	e.api.health[pathFitnessAge] = `{"fitnessAge":40.0}`
+
+	state, err := e.syncer.Run(ctx, nil)
+	if err != nil || !state.OK || state.HealthError != "" || state.HealthDays != 3 {
+		t.Fatalf("state %+v err %v", state, err)
+	}
+	// Since 1 Jan to 22 Oct: 295 days → one summary/HRV request, ten sleep requests.
+	count := map[string]int{}
+	for _, c := range e.api.healthCalls {
+		for p := range e.api.health {
+			if strings.HasPrefix(c, p) {
+				count[p]++
+			}
+		}
+	}
+	if count[pathDailySummaries] != 1 || count[pathHRV] != 1 || count[pathSleep] != 10 || count[pathWeight] != 1 || count[pathFitnessAge] != 1 {
+		t.Errorf("calls %v", count)
+	}
+	if !strings.Contains(e.api.healthCalls[0], "endDate=2026-10-22&startDate=2026-01-01") {
+		t.Errorf("first call %s", e.api.healthCalls[0])
+	}
+	day := func(d string) time.Time { v, _ := time.Parse(time.DateOnly, d); return v }
+	got, _ := e.store.HealthDays(ctx, day("2026-10-01"), day("2026-10-22"), []string{"resting_hr", "sleep_s", "hrv_status", "weight_kg", "fitness_age"})
+	if len(got) != 3 || got[0].Values["weight_kg"] != 80.0 || got[1].Values["sleep_s"] != int64(25200) || got[2].Values["fitness_age"] != 40.0 {
+		t.Errorf("stored %+v", got)
+	}
+
+	// Next run starts a week before the newest stored day (22 Oct → 15 Oct).
+	e.api.healthCalls = nil
+	if _, err := e.syncer.Run(ctx, nil); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(e.api.healthCalls[0], "startDate=2026-10-15") {
+		t.Errorf("incremental window %s", e.api.healthCalls[0])
+	}
+
+	// A failing health endpoint does not fail the activity sync.
+	delete(e.api.health, pathHRV)
+	state, err = e.syncer.Run(ctx, nil)
+	if err != nil || !state.OK || !strings.Contains(state.HealthError, "404") {
+		t.Errorf("health failure must be reported only: %+v %v", state, err)
 	}
 }

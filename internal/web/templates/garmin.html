@@ -35,7 +35,9 @@
         <li class="chip unchanged">bekannt: {{.Known}}</li>
         <li class="chip updated">umbenannt: {{.Renamed}}</li>
         <li class="chip">ohne Datei: {{.NoFile}}</li>
+        {{if .HealthDays}}<li class="chip created">Gesundheit: {{.HealthDays}} Tage</li>{{end}}
       </ul>
+      {{with .HealthError}}<p class="error">Gesundheitsdaten: {{.}}</p>{{end}}
       {{else}}
       <p class="error">{{.Error}}</p>
       {{end}}
@@ -68,6 +70,8 @@
       und nur mit Garmin verknüpft.</li>
     <li>Jeder Lauf prüft die letzten 7 Tage erneut; Umbenennungen in Garmin Connect werden übernommen,
       solange die Aktivität in my Velo nicht umbenannt wurde.</li>
+    <li>Danach werden die Gesundheitswerte (Ruhepuls, HRV, Schlaf, Body Battery, Stress, Schritte, SpO2,
+      Atmung, Gewicht, Fitnessalter) ab dem letzten bekannten Tag nachgeladen.</li>
   </ul>
 </section>
 {{end}}{{end}}

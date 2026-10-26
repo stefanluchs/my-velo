@@ -40,6 +40,10 @@ type State struct {
 	Known      int       `json:"known"`
 	NoFile     int       `json:"no_file"`
 	Renamed    int       `json:"renamed"`
+	// HealthDays counts the days of health values updated; HealthError
+	// is set if only the health part failed.
+	HealthDays  int    `json:"health_days,omitempty"`
+	HealthError string `json:"health_error,omitempty"`
 }
 
 // Syncer imports new Garmin Connect activities.
@@ -146,7 +150,7 @@ func (s *Syncer) run(ctx context.Context, state *State, report func(importer.Res
 			}
 		}
 	}
-	return nil
+	return s.syncHealth(ctx, state)
 }
 
 // importActivity downloads one activity, imports it and links its Garmin ID.
@@ -181,7 +185,7 @@ func (s *Syncer) finish(ctx context.Context, state *State, runErr error) {
 		s.logger().Error("store sync state", "err", err)
 	}
 	s.logger().Info("garmin sync finished", "ok", state.OK, "listed", state.Listed, "imported", state.Imported,
-		"known", state.Known, "renamed", state.Renamed, "err", state.Error)
+		"known", state.Known, "renamed", state.Renamed, "health_days", state.HealthDays, "health_err", state.HealthError, "err", state.Error)
 }
 
 // LastState returns the result of the last sync, or nil before the first one.

@@ -84,8 +84,10 @@ func num(v any) (float64, bool) {
 	return 0, false
 }
 
+// hrvStatus covers the export (IN_RANGE …) and the API (BALANCED …) values.
 var hrvStatus = map[string]string{
 	"IN_RANGE": "im Normalbereich", "BELOW": "unter der Basis", "ABOVE": "über der Basis", "ONBOARDING": "Basis wird ermittelt",
+	"BALANCED": "ausgeglichen", "UNBALANCED": "unausgeglichen", "LOW": "niedrig", "POOR": "schlecht",
 }
 
 var readinessLevel = map[string]string{

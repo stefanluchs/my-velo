@@ -37,7 +37,10 @@ Geprüft am 26.10.2026 am eigenen Bestand (nur Feldnamen und Zeiträume, keine W
 ## Auswirkung auf die Implementierung
 - Belastung lokal aus FIT ableiten (Neuberechnung über `AnalysisVersion`), nicht von der API abhängig machen.
 - Readiness/Status nur als abgeschlossene Historie aus dem Export führen; fortlaufende Last selbst berechnen.
-- Gesundheits-Endpunkte vor Nutzung live prüfen (Spike S5), Felder sind nicht verifiziert.
+- Gesundheits-Endpunkte sind seit Spike S5 (26.10.2026) live geprüft: alle liefern, Historie bis 2022,
+  Schlaf max. 31 Tage je Abruf; VO2max, Readiness und Trainingsstatus fehlen in der API.
+- API und Export benennen Felder unterschiedlich (z. B. HRV-Status `BALANCED` vs. `IN_RANGE`,
+  Atmung ganztägig vs. wach) – beide Quellen schreiben in dieselben Spalten, die Anzeige mappt beide.
 - Export-Dateinamen enthalten die E-Mail-Adresse: nie speichern oder loggen.
 
 ## Verbindungen

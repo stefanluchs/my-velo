@@ -10,8 +10,9 @@
 <section class="card">
   <p>Noch keine Gesundheitsdaten.</p>
   <p class="hint">Gesundheitswerte (Ruhepuls, HRV, Schlaf, Body Battery, Stress, Schritte, Gewicht, VO2max …)
-    kommen aus dem <strong>Garmin-Datenexport</strong>: die ZIP-Datei unverändert in den Import-Ordner legen
-    und unter <a href="import">Import</a> einlesen. Der laufende Abgleich über die Garmin-API folgt.</p>
+    kommen über den <a href="garmin">Garmin-Abgleich</a> (API-Schlüssel nötig) und für die Historie aus dem
+    <strong>Garmin-Datenexport</strong>: die ZIP-Datei unverändert in den Import-Ordner legen und unter
+    <a href="import">Import</a> einlesen.</p>
 </section>
 {{else}}
 <div class="health-cards">
@@ -30,8 +31,8 @@
 </div>
 
 <div id="health-charts" class="health-charts"></div>
-<p class="hint">{{.Days}} Tage mit Gesundheitsdaten. Werte stammen aus dem Garmin-Export; Training Readiness und
-  Trainingsstatus liefert die Garmin-API nicht, sie enden mit dem letzten Export.</p>
+<p class="hint">{{.Days}} Tage mit Gesundheitsdaten. Der Garmin-Abgleich aktualisiert sie laufend; VO2max,
+  Training Readiness und Trainingsstatus liefert die Garmin-API nicht – sie stammen aus dem letzten Export.</p>
 
 <script type="application/json" id="health-data">{{.Chart}}</script>
 <script type="module">
