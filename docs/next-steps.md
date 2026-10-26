@@ -16,6 +16,7 @@ Wissensspeicher [knowledge/](knowledge/00-index/index.md) – vor größeren Än
 | Phase 2 – Analysen | 🟡 begonnen: Kategorien Indoor-Rad/Fitness und Eddington-Zahl ✅ (`v0.6.0`); als Nächstes Explorer-Tiles, Bestleistungen, HF-Zonen |
 | UI-Überarbeitung (mobile first, Light/Dark) | ✅ `v0.7.0`, Feinschliff für die HA-App `v0.7.1` ([ui-konzept.md](ui-konzept.md)) |
 | Training und Gesundheit | 🟡 [plan-training-gesundheit.md](plan-training-gesundheit.md): v0.8.0 Runden, Wetter, Bestleistungen ✅ → v0.9.0 Zonen, Belastung ✅ → v0.10.0 Gesundheit aus dem Export ✅ → [S5](spikes/s5-health-api.md) ✅ → v0.11.0 API-Abgleich ✅ |
+| Einordnung („Was heißt das für mich?“) | 📝 Konzept [konzept-einordnung.md](konzept-einordnung.md), wartet auf Freigabe |
 
 Vorhanden im Repository:
 
