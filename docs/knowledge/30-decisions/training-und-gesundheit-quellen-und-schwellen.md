@@ -42,3 +42,5 @@ Navigation: Statistik wird „Training“ mit Unterseiten, eigener Tab „Gesund
 - [[moc-decisions]]
 - [[trainings-und-gesundheitsdaten-quellen]]
 - [[ui-mobile-first-light-standard]]
+- [[bestleistungen-regeln]]
+- [[wetter-ueber-open-meteo]]

@@ -4,6 +4,7 @@ package garmin
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"sync"
 	"time"
@@ -21,6 +22,9 @@ type Notifier interface {
 }
 
 const notificationID = "myvelo_garmin_api_key"
+
+// busyRetry is the wait before a scheduled sync retries when another import runs.
+const busyRetry = 5 * time.Minute
 
 // Service bundles manual and scheduled syncs for the panel.
 type Service struct {
@@ -117,6 +121,11 @@ func (s *Service) RunScheduler(ctx context.Context, initialDelay time.Duration) 
 		next = s.Interval
 		if err := s.SyncNow(); err != nil {
 			s.logger().Info("scheduled sync skipped", "err", err)
+			// Another import (e.g. the reanalysis after an update) is
+			// running: try again soon instead of a full interval later.
+			if !errors.Is(err, ErrAuthRequired) {
+				next = min(s.Interval, busyRetry)
+			}
 		}
 	}
 }

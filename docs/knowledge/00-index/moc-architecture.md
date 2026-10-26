@@ -19,6 +19,9 @@ Zurück zum [[index]]. Autoritativ: `docs/architecture.md`.
 - [[zeitzone-tzdata-und-injizierbare-uhr]] — `time/tzdata`, `TZ`, `Deps.Now`
 - [[sqlite-wal-und-cold-backup]] — modernc SQLite, WAL, `backup: cold`
 
+## Externe Dienste
+- [[wetter-ueber-open-meteo]] — Forecast < 30 Tage, sonst Archiv; gerundete Startposition; eigener Dienst
+
 ## Karten und Heatmap
 - [[kartenlayer-dop40-und-maptiler]] — DOP40 als transparentes PNG, MapTiler-Key im Browser
 - [[heatmap-clientseitig-gefiltert]] — GeoJSON einmal laden, Filter auf `t`

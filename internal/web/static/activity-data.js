@@ -74,3 +74,43 @@ export function thin(x, series, maxPoints = 4000) {
     index,
   };
 }
+
+/**
+ * Sample range [first, last] of a section given in seconds since the start
+ * (laps, best efforts); null if no sample lies inside.
+ */
+export function rangeIndices(t, startS, endS) {
+  let first = -1;
+  let last = -1;
+  for (let i = 0; i < t.length; i++) {
+    if (t[i] < startS) continue;
+    if (t[i] > endS) break;
+    if (first < 0) first = i;
+    last = i;
+  }
+  return first < 0 ? null : [first, last];
+}
+
+/** Positions of samples first..last as [lon, lat] pairs. */
+export function sectionCoordinates(stream, first, last) {
+  const out = [];
+  const { lat, lon } = stream;
+  if (!lat || !lon) return out;
+  for (let i = first; i <= last && i < lat.length; i++) {
+    if (lat[i] != null && lon[i] != null) out.push([lon[i], lat[i]]);
+  }
+  return out;
+}
+
+/** Index range [k0, k1] of thinned chart samples covering first..last. */
+export function thinnedRange(index, first, last) {
+  let k0 = -1;
+  let k1 = -1;
+  for (let k = 0; k < index.length; k++) {
+    if (index[k] < first) continue;
+    if (index[k] > last) break;
+    if (k0 < 0) k0 = k;
+    k1 = k;
+  }
+  return k0 < 0 ? null : [k0, k1];
+}

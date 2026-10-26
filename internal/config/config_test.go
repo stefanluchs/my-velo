@@ -14,21 +14,21 @@ func TestLoadMissingFileReturnsDefaults(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if opts != Defaults() {
-		t.Errorf("got %+v, want defaults", opts)
+	if opts != Defaults() || !opts.Weather {
+		t.Errorf("got %+v, want defaults with weather enabled", opts)
 	}
 }
 
 func TestLoadOverridesDefaults(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "options.json")
-	if err := os.WriteFile(path, []byte(`{"log_level":"debug","map_provider":"maptiler","maptiler_key":"k"}`), 0o600); err != nil {
+	if err := os.WriteFile(path, []byte(`{"log_level":"debug","map_provider":"maptiler","maptiler_key":"k","weather":false}`), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	opts, err := Load(path)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if opts.MapProvider != "maptiler" || opts.MapTilerKey != "k" || opts.SlogLevel() != slog.LevelDebug {
+	if opts.MapProvider != "maptiler" || opts.MapTilerKey != "k" || opts.SlogLevel() != slog.LevelDebug || opts.Weather {
 		t.Errorf("unexpected options %+v", opts)
 	}
 }

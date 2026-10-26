@@ -19,3 +19,4 @@ Zurück zum [[index]].
 
 ## Training und Gesundheit
 - [[trainings-und-gesundheitsdaten-quellen]] — Last in FIT, Historie im Export-JSON, laufend über Personal API
+- [[bestleistungen-regeln]] — Gesamtzeit interpoliert, 1-s-Leistung, 10 m Anstiegs-Toleranz, ohne E-Bikes

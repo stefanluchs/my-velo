@@ -66,6 +66,8 @@ type Summary struct {
 	MaxPower   int     `json:"max_power"`
 	AvgCadence int     `json:"avg_cadence"`
 
+	Training Training `json:"training"`
+
 	Records     int   `json:"records"`
 	GPSPoints   int   `json:"gps_points"`
 	HasHR       bool  `json:"has_heart_rate"`
@@ -81,9 +83,48 @@ type BBox struct {
 	MinLat, MinLon, MaxLat, MaxLon float64
 }
 
-// Activity is a decoded activity file: summary plus per-record streams.
+// Training holds the training values Garmin devices write into the session
+// summary. Zero means "not recorded"; TSS, IF and threshold power need a
+// power meter and a configured FTP.
+type Training struct {
+	// Effect and AnaerobicEffect are Garmin's training effect (0–5).
+	Effect          float64 `json:"training_effect,omitempty"`
+	AnaerobicEffect float64 `json:"anaerobic_training_effect,omitempty"`
+	// Load is Garmin's training load of the activity (EPOC based), the
+	// value behind acute and chronic load on the watch.
+	Load            float64 `json:"training_load,omitempty"`
+	NormalizedPower int     `json:"normalized_power,omitempty"`
+	TSS             float64 `json:"training_stress_score,omitempty"`
+	IntensityFactor float64 `json:"intensity_factor,omitempty"`
+	ThresholdPower  int     `json:"threshold_power,omitempty"`
+	// RPE is the perceived exertion 1–10, Feel 0–100 (both entered on the watch).
+	RPE  float64 `json:"rpe,omitempty"`
+	Feel int     `json:"feel,omitempty"`
+}
+
+// Lap is one lap of an activity. StartOffsetS is relative to the activity
+// start; zero metrics mean "not recorded".
+type Lap struct {
+	StartOffsetS float64 `json:"start_offset_s"`
+	TimerS       float64 `json:"timer_s"`
+	ElapsedS     float64 `json:"elapsed_s"`
+	DistanceM    float64 `json:"distance_m"`
+	AscentM      int     `json:"ascent_m"`
+	DescentM     int     `json:"descent_m"`
+	AvgSpeed     float64 `json:"avg_speed_mps"`
+	MaxSpeed     float64 `json:"max_speed_mps"`
+	AvgHR        int     `json:"avg_heart_rate"`
+	MaxHR        int     `json:"max_heart_rate"`
+	AvgPower     int     `json:"avg_power"`
+	AvgCadence   int     `json:"avg_cadence"`
+	// Trigger is the FIT lap trigger, e.g. "manual", "distance", "session_end".
+	Trigger string `json:"trigger"`
+}
+
+// Activity is a decoded activity file: summary, laps and per-record streams.
 type Activity struct {
 	Summary
+	Laps   []Lap
 	Stream Stream
 }
 
@@ -166,7 +207,7 @@ func Decode(raw []byte) (*Activity, error) {
 	summarizeSessions(&s, act.Sessions)
 	stream := buildStream(&s, act.Records)
 	s.TZOffsetS = tzOffset(act.Activity)
-	return &Activity{Summary: s, Stream: stream}, nil
+	return &Activity{Summary: s, Laps: laps(s.StartTime, act.Laps), Stream: stream}, nil
 }
 
 // tzOffset derives the UTC offset from the activity message. Offsets outside
@@ -204,6 +245,11 @@ func summarizeSessions(s *Summary, sessions []*mesgdef.Session) {
 			s.DescentM += int(ses.TotalDescent)
 		}
 	}
+	for _, ses := range sessions {
+		s.Training.Load += valid(ses.TrainingLoadPeakScaled())
+		s.Training.Effect = math.Max(s.Training.Effect, valid(ses.TotalTrainingEffectScaled()))
+		s.Training.AnaerobicEffect = math.Max(s.Training.AnaerobicEffect, valid(ses.TotalAnaerobicTrainingEffectScaled()))
+	}
 	// Averages only from a single session; for multisport files they are
 	// derived from the records, which mixes sports consistently.
 	if len(sessions) != 1 {
@@ -217,6 +263,50 @@ func summarizeSessions(s *Summary, sessions []*mesgdef.Session) {
 	s.AvgPower = validU16(ses.AvgPower)
 	s.MaxPower = validU16(ses.MaxPower)
 	s.AvgCadence = validU8(ses.AvgCadence)
+	s.Training.NormalizedPower = validU16(ses.NormalizedPower)
+	s.Training.TSS = valid(ses.TrainingStressScoreScaled())
+	s.Training.IntensityFactor = valid(ses.IntensityFactorScaled())
+	s.Training.ThresholdPower = validU16(ses.ThresholdPower)
+	if ses.WorkoutRpe != basetype.Uint8Invalid && ses.WorkoutRpe > 0 {
+		s.Training.RPE = float64(ses.WorkoutRpe) / 10
+	}
+	if ses.WorkoutFeel != basetype.Uint8Invalid {
+		s.Training.Feel = int(ses.WorkoutFeel)
+	}
+}
+
+// laps converts the lap messages; laps without duration (some devices write
+// an empty lap at the end) are dropped.
+func laps(start time.Time, in []*mesgdef.Lap) []Lap {
+	out := make([]Lap, 0, len(in))
+	for _, l := range in {
+		lap := Lap{
+			TimerS:     valid(l.TotalTimerTimeScaled()),
+			ElapsedS:   valid(l.TotalElapsedTimeScaled()),
+			DistanceM:  valid(l.TotalDistanceScaled()),
+			AvgSpeed:   valid(l.EnhancedAvgSpeedScaled()),
+			MaxSpeed:   valid(l.EnhancedMaxSpeedScaled()),
+			AvgHR:      validU8(l.AvgHeartRate),
+			MaxHR:      validU8(l.MaxHeartRate),
+			AvgPower:   validU16(l.AvgPower),
+			AvgCadence: validU8(l.AvgCadence),
+			Trigger:    l.LapTrigger.String(),
+		}
+		if l.TotalAscent != basetype.Uint16Invalid {
+			lap.AscentM = int(l.TotalAscent)
+		}
+		if l.TotalDescent != basetype.Uint16Invalid {
+			lap.DescentM = int(l.TotalDescent)
+		}
+		if !l.StartTime.IsZero() && !start.IsZero() {
+			lap.StartOffsetS = l.StartTime.Sub(start).Seconds()
+		}
+		if lap.TimerS <= 0 && lap.ElapsedS <= 0 {
+			continue
+		}
+		out = append(out, lap)
+	}
+	return out
 }
 
 func valid(v float64) float64 {

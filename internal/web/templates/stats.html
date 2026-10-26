@@ -4,7 +4,8 @@
 {{end}}
 
 {{define "content"}}{{with .Data}}
-<h1>Statistik</h1>
+<h1 class="visually-hidden">Statistik</h1>
+{{template "trainingNav" "stats"}}
 
 <form class="filters" method="get" action="stats">
   <label>Sport

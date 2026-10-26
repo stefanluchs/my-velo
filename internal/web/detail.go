@@ -24,6 +24,14 @@ type detailData struct {
 	Date string
 	// Category is the sport.Category ID, used for the accent color.
 	Category string
+
+	// Filled only for the full page, not for the rename fragment.
+	Laps       []lapView
+	AutoLaps   bool
+	TopEfforts []effortView
+	Efforts    []effortView
+	Weather    *weatherView
+	Training   []trainingView
 }
 
 func (s *server) activityID(w http.ResponseWriter, r *http.Request) (int64, bool) {
@@ -59,9 +67,32 @@ func (s *server) loadDetail(w http.ResponseWriter, r *http.Request) (detailData,
 }
 
 func (s *server) activity(w http.ResponseWriter, r *http.Request) {
-	if d, ok := s.loadDetail(w, r); ok {
-		s.render(w, r, "activity.html", "activities", d)
+	d, ok := s.loadDetail(w, r)
+	if !ok {
+		return
 	}
+	ctx, id := r.Context(), d.Activity.ID
+	laps, err := s.Store.Laps(ctx, id)
+	if err != nil {
+		s.serverError(w, "load laps", err)
+		return
+	}
+	d.Laps, d.AutoLaps = lapViews(laps, d.Category == "run")
+	efforts, err := s.Store.Efforts(ctx, id)
+	if err != nil {
+		s.serverError(w, "load efforts", err)
+		return
+	}
+	d.TopEfforts, d.Efforts = effortViews(efforts, d.Activity.LocalStart().Year())
+	if wt, ok, err := s.Store.Weather(ctx, id); err != nil {
+		s.serverError(w, "load weather", err)
+		return
+	} else if ok {
+		v := newWeatherView(wt)
+		d.Weather = &v
+	}
+	d.Training = trainingViews(d.Activity.Training)
+	s.render(w, r, "activity.html", "activities", d)
 }
 
 // rename updates the name and returns the refreshed title fragment.

@@ -129,3 +129,31 @@ func TestRejectsNonActivityAndGarbage(t *testing.T) {
 		t.Error("truncated file: expected error")
 	}
 }
+
+func TestTrainingFieldsAndLaps(t *testing.T) {
+	o := defaultFixture()
+	o.Training, o.Laps = true, 3
+	act, err := Decode(encode(t, o))
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := Training{Effect: 3.3, AnaerobicEffect: 1.2, Load: 50, NormalizedPower: 215, TSS: 20.7, IntensityFactor: 0.85, ThresholdPower: 250}
+	if act.Training != want {
+		t.Errorf("training %+v, want %+v", act.Training, want)
+	}
+	if len(act.Laps) != 3 {
+		t.Fatalf("laps %d", len(act.Laps))
+	}
+	l := act.Laps[1]
+	if l.StartOffsetS != 20 || l.TimerS != 20 || l.DistanceM != 160 || l.AvgSpeed != 8 || l.AvgHR != 120 || l.AvgPower != 210 || l.Trigger != "manual" {
+		t.Errorf("lap 2: %+v", l)
+	}
+
+	plain, err := Decode(encode(t, defaultFixture()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if plain.Training != (Training{}) || len(plain.Laps) != 1 {
+		t.Errorf("without training fields: %+v, %d laps", plain.Training, len(plain.Laps))
+	}
+}

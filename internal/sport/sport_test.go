@@ -73,3 +73,14 @@ func TestLabel(t *testing.T) {
 		}
 	}
 }
+
+func TestMotorized(t *testing.T) {
+	for _, c := range []struct {
+		sport, sub string
+		want       bool
+	}{{"e_biking", "e_bike_mountain", true}, {"cycling", "e_bike_fitness", true}, {"cycling", "gravel_cycling", false}, {"running", "", false}} {
+		if got := Motorized(c.sport, c.sub); got != c.want {
+			t.Errorf("%s/%s: %v", c.sport, c.sub, got)
+		}
+	}
+}

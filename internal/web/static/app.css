@@ -1237,8 +1237,8 @@ form.stack .row {
 }
 
 .kpi-grid dd {
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 @media (min-width: 48rem) {
@@ -1507,4 +1507,135 @@ main.full + footer {
   .link-list a:hover {
     background: var(--surface-2);
   }
+}
+
+/* ---------- Training sub-navigation ---------- */
+.subnav {
+  margin-bottom: var(--space-4);
+}
+
+/* ---------- Detail: weather, best efforts, laps ---------- */
+.weather-line {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.weather-icon {
+  font-size: 1.8rem;
+  line-height: 1;
+}
+
+.effort-medals {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  padding: 0;
+  margin: 0 0 var(--space-3);
+  list-style: none;
+}
+
+button.effort-chip {
+  min-height: 40px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--text);
+  font-weight: 400;
+  font-size: 0.9rem;
+}
+
+button.effort-chip small {
+  color: var(--text-muted);
+}
+
+table.compact th,
+table.compact td {
+  padding: var(--space-1) var(--space-2);
+  white-space: normal;
+  vertical-align: top;
+}
+
+table.compact th[scope="row"] {
+  font-weight: 500;
+}
+
+.laps tbody tr,
+.efforts-card tbody tr {
+  cursor: pointer;
+}
+
+.laps tbody tr:hover,
+.efforts-card tbody tr:hover {
+  background: var(--surface-2);
+}
+
+tr.selected,
+button.effort-chip.selected {
+  background: var(--accent-soft) !important;
+  outline: 1px solid var(--accent);
+}
+
+.laps th,
+.laps td {
+  padding: var(--space-2) var(--space-1);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Best efforts page ---------- */
+.record-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-4);
+  margin-bottom: var(--space-4);
+}
+
+.record-grid > .card {
+  margin: 0;
+}
+
+@media (min-width: 48rem) {
+  .record-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 64rem) {
+  .record-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.record-list ol {
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.record-list li a {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+  text-decoration: none;
+}
+
+.record-list li:last-child a {
+  border-bottom: none;
+}
+
+.medal {
+  flex: none;
+  width: 1.6rem;
+  font-size: 1.2rem;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.record-main {
+  min-width: 0;
+  font-variant-numeric: tabular-nums;
 }

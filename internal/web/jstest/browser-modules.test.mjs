@@ -6,7 +6,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 
 import { buildStyle, basemapVisibility, bounds } from "../static/map-style.js";
-import { coordinates, positionAt, xAxis, chartSeries, thin } from "../static/activity-data.js";
+import { coordinates, positionAt, xAxis, chartSeries, thin, rangeIndices, sectionCoordinates, thinnedRange } from "../static/activity-data.js";
 
 const cfg = {
   default: "osm",
@@ -82,4 +82,23 @@ test("thin keeps every n-th sample and maps indices back", () => {
   assert.deepEqual(r.x, [0, 3, 6]);
   assert.deepEqual(r.series[0].values, [0, 30, 60]);
   assert.equal(thin(x, [], 100).x, x);
+});
+
+test("rangeIndices finds the samples of a lap", () => {
+  const t = [0, 1, 2, 5, 6, 10];
+  assert.deepEqual(rangeIndices(t, 2, 6), [2, 4]);
+  assert.deepEqual(rangeIndices(t, 0, 0), [0, 0]);
+  assert.equal(rangeIndices(t, 3, 4), null);
+  assert.equal(rangeIndices(t, 11, 20), null);
+});
+
+test("sectionCoordinates skips dropouts", () => {
+  const s = { lat: [48, null, 48.2, 48.3], lon: [12, 12.1, 12.2, 12.3] };
+  assert.deepEqual(sectionCoordinates(s, 0, 2), [[12, 48], [12.2, 48.2]]);
+  assert.deepEqual(sectionCoordinates({}, 0, 2), []);
+});
+
+test("thinnedRange maps a sample range to thinned chart points", () => {
+  assert.deepEqual(thinnedRange([0, 3, 6, 9], 2, 7), [1, 2]);
+  assert.equal(thinnedRange([0, 3, 6, 9], 4, 5), null);
 });

@@ -17,19 +17,25 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"math"
 	"os"
 	"path/filepath"
 	"time"
 
+	"github.com/stefanluchs/my-velo/internal/analysis"
 	"github.com/stefanluchs/my-velo/internal/fitfile"
 	"github.com/stefanluchs/my-velo/internal/geo"
+	"github.com/stefanluchs/my-velo/internal/sport"
 	"github.com/stefanluchs/my-velo/internal/store"
 )
 
 // AnalysisVersion identifies the derivation logic. Increase it when stream,
-// track or metric derivation changes; activities are then re-derived on the
-// next import of their file.
-const AnalysisVersion = 1
+// track or metric derivation changes; Reanalyze then re-derives all
+// activities from their archived raw files.
+//
+//  1. stream, track, summary metrics
+//  2. training values, laps/splits, best efforts
+const AnalysisVersion = 2
 
 // StreamEncoding describes how activity streams are stored.
 const StreamEncoding = "json+gzip;v1"
@@ -222,10 +228,17 @@ func recording(act *fitfile.Activity, origin string) (store.Recording, error) {
 			DeviceManufacturer: int(act.ManufacturerID),
 			DeviceProduct:      int(act.Product),
 			DeviceSerial:       int64(act.Serial),
+			Training:           store.Training(act.Training),
 			AnalysisVersion:    AnalysisVersion,
 		},
 		Stream: store.Blob{Encoding: StreamEncoding, Data: stream},
 	}
+	plan := analysis.PlanFor(sport.CategoryOf(act.Sport, act.SubSport).ID)
+	if sport.Motorized(act.Sport, act.SubSport) {
+		plan = analysis.EffortPlan{SplitM: plan.SplitM}
+	}
+	rec.Laps = laps(act, plan.SplitM)
+	rec.Efforts = efforts(&act.Stream, plan)
 	if act.BBox != nil {
 		b := store.BBox(*act.BBox)
 		rec.Activity.BBox = &b
@@ -267,4 +280,112 @@ func DecodeStream(b store.Blob) (*fitfile.Stream, error) {
 		return nil, err
 	}
 	return &s, nil
+}
+
+// laps returns the device laps, or automatic distance splits when the
+// activity was recorded as a single lap.
+func laps(act *fitfile.Activity, splitM float64) []store.Lap {
+	if len(act.Laps) > 1 {
+		out := make([]store.Lap, len(act.Laps))
+		for i, l := range act.Laps {
+			out[i] = store.Lap{
+				StartS: l.StartOffsetS, EndS: l.StartOffsetS + l.ElapsedS, TimerS: l.TimerS, DistanceM: l.DistanceM,
+				AscentM: l.AscentM, DescentM: l.DescentM, AvgSpeed: l.AvgSpeed, MaxSpeed: l.MaxSpeed,
+				AvgHR: l.AvgHR, MaxHR: l.MaxHR, AvgPower: l.AvgPower, AvgCadence: l.AvgCadence,
+			}
+		}
+		return out
+	}
+	st := &act.Stream
+	if act.DistanceM < 2*splitM {
+		return nil
+	}
+	splits := analysis.Splits(st.T, st.Dist, st.Alt, st.HR, st.Power, splitM)
+	out := make([]store.Lap, len(splits))
+	for i, sp := range splits {
+		elapsed := sp.EndS - sp.StartS
+		l := store.Lap{
+			Auto: true, StartS: sp.StartS, EndS: sp.EndS, TimerS: elapsed, DistanceM: sp.DistanceM,
+			AscentM: int(math.Round(sp.AscentM)), DescentM: int(math.Round(sp.DescentM)),
+			AvgHR: int(math.Round(sp.AvgHR)), AvgPower: int(math.Round(sp.AvgPower)),
+		}
+		if elapsed > 0 {
+			l.AvgSpeed = sp.DistanceM / elapsed
+		}
+		out[i] = l
+	}
+	return out
+}
+
+// efforts computes the best efforts of an activity according to plan.
+func efforts(st *fitfile.Stream, plan analysis.EffortPlan) []store.Effort {
+	if plan.Group == "" {
+		return nil
+	}
+	var out []store.Effort
+	for _, m := range plan.Distances {
+		if sec, w, ok := analysis.FastestDistance(st.T, st.Dist, float64(m)); ok {
+			out = append(out, store.Effort{Group: plan.Group, Kind: store.EffortDistance, Key: m,
+				Value: round1(sec), StartS: round1(w.StartS), EndS: round1(w.EndS)})
+		}
+	}
+	if plan.Power {
+		curve := analysis.PowerCurve(st.T, st.Power, analysis.PowerDurations)
+		for _, d := range analysis.PowerDurations {
+			if p, ok := curve[d]; ok {
+				out = append(out, store.Effort{Group: plan.Group, Kind: store.EffortPower, Key: d,
+					Value: round1(p.Watts), StartS: p.StartS, EndS: p.EndS})
+			}
+		}
+	}
+	if plan.Climb {
+		if c, ok := analysis.LargestClimb(st.T, st.Alt, st.Dist); ok {
+			out = append(out, store.Effort{Group: plan.Group, Kind: store.EffortClimb,
+				Value: round1(c.GainM), StartS: c.StartS, EndS: c.EndS, Extra: round1(c.DistanceM)})
+		}
+	}
+	return out
+}
+
+func round1(v float64) float64 { return math.Round(v*10) / 10 }
+
+// Reanalyze re-derives all activities with an older AnalysisVersion from
+// their archived raw files and reports each result to fn. Activities whose
+// raw file is missing are reported as failed and keep their old data.
+func (im *Importer) Reanalyze(ctx context.Context, fn func(Result)) (Stats, error) {
+	var stats Stats
+	files, err := im.Store.Outdated(ctx, AnalysisVersion)
+	if err != nil {
+		return stats, err
+	}
+	for _, f := range files {
+		if err := ctx.Err(); err != nil {
+			return stats, err
+		}
+		res := im.reanalyzeOne(ctx, f)
+		stats.Add(res)
+		if fn != nil {
+			fn(res)
+		}
+	}
+	return stats, nil
+}
+
+func (im *Importer) reanalyzeOne(ctx context.Context, f store.SourceFile) Result {
+	res := Result{Origin: f.Origin, Key: f.Key, ActivityID: f.ActivityID}
+	if im.RawDir == "" || len(f.SHA256) < 2 {
+		return res.fail(errors.New("raw file unknown"))
+	}
+	file, err := os.Open(filepath.Join(im.RawDir, f.SHA256[:2], f.SHA256+".fit"))
+	if err != nil {
+		return res.fail(fmt.Errorf("raw file: %w", err))
+	}
+	defer file.Close()
+	return im.ImportReader(ctx, file, f.Origin)
+}
+
+// Outdated reports how many activities Reanalyze would re-derive.
+func (im *Importer) Outdated(ctx context.Context) (int, error) {
+	files, err := im.Store.Outdated(ctx, AnalysisVersion)
+	return len(files), err
 }

@@ -33,6 +33,11 @@ type Options struct {
 	HROffset uint8 // varies record content without touching file_id
 	// NoSession simulates a recording aborted before the summary was written.
 	NoSession bool
+	// Laps splits the recording into this many equal laps (0 or 1: one lap).
+	Laps int
+	// Training adds Garmin training fields to the session (training effect
+	// 3.3, anaerobic 1.2, load 50, NP 215, TSS 20.7, IF 0.85, FTP 250).
+	Training bool
 }
 
 // Default returns a 60-second outdoor ride with GPS, heart rate and power.
@@ -70,8 +75,29 @@ func Encode(tb testing.TB, o Options) []byte {
 	}
 	end := start.Add(time.Duration(o.Points) * time.Second)
 	if !o.NoSession {
-		act.Laps = append(act.Laps, mesgdef.NewLap(nil).SetTimestamp(end).SetStartTime(start))
-		act.Sessions = append(act.Sessions, mesgdef.NewSession(nil).
+		laps := max(1, o.Laps)
+		per := o.Points / laps
+		for l := range laps {
+			n := per
+			if l == laps-1 {
+				n = o.Points - per*(laps-1)
+			}
+			ls := start.Add(time.Duration(l*per) * time.Second)
+			lap := mesgdef.NewLap(nil).SetTimestamp(ls.Add(time.Duration(n) * time.Second)).SetStartTime(ls).
+				SetTotalTimerTime(uint32(n * 1000)).SetTotalElapsedTime(uint32(n * 1000)).
+				SetTotalDistance(uint32(n * 800)).SetEnhancedAvgSpeed(8000).SetAvgHeartRate(120 + o.HROffset).
+				SetLapTrigger(typedef.LapTriggerManual)
+			if o.Power {
+				lap.SetAvgPower(210)
+			}
+			act.Laps = append(act.Laps, lap)
+		}
+		ses := mesgdef.NewSession(nil)
+		if o.Training {
+			ses.SetTotalTrainingEffect(33).SetTotalAnaerobicTrainingEffect(12).SetTrainingLoadPeak(50 << 16).
+				SetNormalizedPower(215).SetTrainingStressScore(207).SetIntensityFactor(850).SetThresholdPower(250)
+		}
+		act.Sessions = append(act.Sessions, ses.
 			SetTimestamp(end).
 			SetStartTime(start).
 			SetSport(typedef.SportCycling).

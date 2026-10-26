@@ -45,5 +45,6 @@ nicht auf das Rad-Jahresziel.
 - Der Test muss nach jeder Regeländerung grün bleiben.
 
 ## Verbindungen
+- [[bestleistungen-regeln]]
 - [[moc-domain]]
 - [[eddington-zahl-pro-lokalem-tag]]

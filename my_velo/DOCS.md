@@ -4,7 +4,7 @@
 my Velo speichert und zeigt deine Sportaktivitäten lokal in Home Assistant. Quelle sind die
 Original-FIT-Dateien deiner Geräte.
 
-> **Stand 0.7.1:** Import und automatischer Abgleich über die offizielle Garmin Connect Personal
+> **Stand 0.8.0:** Import und automatischer Abgleich über die offizielle Garmin Connect Personal
 > API, Dashboard, Aktivitäten als Kacheln, Detailansicht mit Karte und Diagrammen, Statistik mit
 > Jahreszielen und Eddington-Zahl, persönliche Heatmap. Oberfläche für Handy und Desktop, hell
 > oder dunkel.
@@ -82,13 +82,43 @@ Was dabei passiert:
 
 ## Bedienung und Darstellung
 
-- **Navigation:** auf dem Handy unten (Übersicht, Aktivitäten, Statistik, Heatmap, Mehr), am
+- **Navigation:** auf dem Handy unten (Übersicht, Aktivitäten, Training, Heatmap, Mehr), am
   Desktop oben. **Import**, **Garmin** und **Darstellung** liegen unter **Mehr**.
 - **Hell/Dunkel:** Standard ist hell. Unter **Mehr → Darstellung** lässt sich Dunkel oder
   „System“ (folgt der Geräteeinstellung) wählen; die Wahl gilt pro Browser.
 - **Aktivitäten** erscheinen als Kacheln mit Streckenskizze, gruppiert nach Monat. Beim
   Herunterscrollen werden ältere Aktivitäten automatisch nachgeladen; **Filter** öffnet Sportart,
   Jahr und Zeitraum.
+
+## Aktivitätsdetails
+
+- **Kennzahlen** inkl. der Trainingswerte der Uhr: Trainingseffekt (aerob/anaerob),
+  Trainingsbelastung, bei Leistungsmessern Normalized Power, TSS und IF, ggf. die eingegebene
+  Anstrengung (RPE).
+- **Wetter** am Startpunkt während der Aktivität (Temperatur, gefühlt, Wind mit Richtung und Böen,
+  Niederschlag) von [Open-Meteo](https://open-meteo.com). Übertragen werden nur die auf ca. 1 km
+  gerundete Startposition und das Datum; mit der Option `weather: false` abschaltbar. Nach dem
+  ersten Start werden die Wetterdaten aller Aktivitäten im Hintergrund nachgeladen (etwa 1 pro Sekunde).
+- **Bestleistungen** der Aktivität mit Platzierung (gesamt und im Jahr); Medaillen für die
+  besten drei.
+- **Runden** vom Gerät; ohne Runden automatische **Splits** (Rad 5 km, sonst 1 km).
+  Antippen einer Runde oder Bestleistung markiert den Abschnitt in Karte und Diagrammen.
+
+## Bestleistungen
+
+Unter **Training → Bestleistungen** stehen je Sportart und Zeitraum (alle Jahre oder ein Jahr):
+
+- **Rad:** schnellste 5, 10, 20, 40 und 100 km, die **Leistungskurve** (beste Durchschnittsleistung
+  über 5 s bis 1 h, gewähltes Jahr gegen Bestwert) und die größten Anstiege.
+- **Laufen:** schnellste 1, 5 und 10 km, Halbmarathon und Marathon; größte Anstiege.
+- **Wandern:** größte Anstiege.
+
+Regeln: Zeiten sind Gesamtzeit inkl. Pausen (wie bei Strava). Für die Leistungskurve zählen
+Pausen über 5 s als 0 W; Indoor-Fahrten zählen mit. Ein Anstieg endet, wenn es mehr als 10 m
+bergab geht, und zählt ab 30 Hm. **E-Bike-Fahrten** zählen nicht zu den Bestleistungen.
+
+Nach dem Update auf 0.8.0 berechnet my Velo alle Aktivitäten einmal aus den gespeicherten
+Originaldateien neu; der Fortschritt steht unter **Mehr → Import**.
 
 ## Übersicht und Statistik
 
@@ -98,7 +128,7 @@ Was dabei passiert:
 - Die **Übersicht** zeigt wahlweise Woche, Monat oder Jahr bis heute für die gewählte Sportart;
   „Vorjahr“ vergleicht mit denselben Kalendertagen des Vorjahres. Dazu Jahresziel, die Kilometer
   der letzten 12 Wochen und die neuesten Aktivitäten.
-- Unter **Statistik** gibt es Balken pro Monat oder Kalenderwoche (ISO, Woche beginnt Montag), den
+- Unter **Training → Statistik** gibt es Balken pro Monat oder Kalenderwoche (ISO, Woche beginnt Montag), den
   kumulierten Jahresvergleich und die Übersicht aller Jahre. Der Jahresvergleich nennt unter dem
   Diagramm den Stand aller Jahre am heutigen Tag; Antippen eines Tages zeigt dessen Werte.
 - **Eddington-Zahl:** größte Zahl E, für die du an E Tagen jeweils mindestens E km geschafft
@@ -148,6 +178,7 @@ bleiben sichtbar.
 | `garmin_api_key` | leer | Schlüssel der Garmin Connect Personal API; leer schaltet den Abgleich ab |
 | `garmin_sync_interval_hours` | `2` | Abstand des automatischen Garmin-Abgleichs in Stunden, `0` schaltet ihn ab |
 | `garmin_sync_since` | `2026-01-01` | erster Tag, ab dem der erste Abgleich Aktivitäten lädt (JJJJ-MM-TT) |
+| `weather` | `true` | Wetter zu Aktivitäten von Open-Meteo laden (nur gerundete Startposition und Datum werden übertragen) |
 | `maptiler_key` | leer | kostenloser Key aus [cloud.maptiler.com](https://cloud.maptiler.com); er wird an den Browser übergeben, weil dieser die Kacheln lädt |
 
 ## Daten und Backup

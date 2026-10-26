@@ -46,9 +46,61 @@ type Activity struct {
 
 	BBox *BBox
 
+	Training Training
+
 	AnalysisVersion int
 	CreatedAt       time.Time
 	UpdatedAt       time.Time
+}
+
+// Training holds the training values the device wrote (see
+// fitfile.Training); zero means "not recorded".
+type Training struct {
+	Effect          float64
+	AnaerobicEffect float64
+	Load            float64
+	NormalizedPower int
+	TSS             float64
+	IntensityFactor float64
+	ThresholdPower  int
+	RPE             float64
+	Feel            int
+}
+
+// Lap is a lap of an activity or, with Auto, an automatic distance split.
+// Times are seconds since the activity start.
+type Lap struct {
+	Auto       bool
+	StartS     float64
+	EndS       float64
+	TimerS     float64
+	DistanceM  float64
+	AscentM    int
+	DescentM   int
+	AvgSpeed   float64
+	MaxSpeed   float64
+	AvgHR      int
+	MaxHR      int
+	AvgPower   int
+	AvgCadence int
+}
+
+// Effort kinds, see migration 0003.
+const (
+	EffortDistance = "distance"
+	EffortPower    = "power"
+	EffortClimb    = "climb"
+)
+
+// Effort is a best effort within an activity.
+type Effort struct {
+	Group  string
+	Kind   string
+	Key    int
+	Value  float64
+	StartS float64
+	EndS   float64
+	Extra  float64
 }
 
 // BBox is a bounding box in degrees.
@@ -82,6 +134,8 @@ type Recording struct {
 	Activity Activity
 	Stream   Blob
 	Track    *Track // nil for activities without GPS
+	Laps     []Lap
+	Efforts  []Effort
 }
 
 // SaveStatus describes what SaveRecording did.
@@ -157,14 +211,37 @@ func saveDerived(ctx context.Context, tx *sql.Tx, id int64, rec Recording) error
 		return err
 	}
 	if rec.Track == nil {
-		_, err := tx.ExecContext(ctx, `DELETE FROM activity_track WHERE activity_id = ?`, id)
-		return err
-	}
-	_, err := tx.ExecContext(ctx, `
+		if _, err := tx.ExecContext(ctx, `DELETE FROM activity_track WHERE activity_id = ?`, id); err != nil {
+			return err
+		}
+	} else if _, err := tx.ExecContext(ctx, `
 		INSERT INTO activity_track (activity_id, points, polyline) VALUES (?, ?, ?)
 		ON CONFLICT (activity_id) DO UPDATE SET points = excluded.points, polyline = excluded.polyline`,
-		id, rec.Track.Points, rec.Track.Polyline)
-	return err
+		id, rec.Track.Points, rec.Track.Polyline); err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx, `DELETE FROM activity_lap WHERE activity_id = ?`, id); err != nil {
+		return err
+	}
+	for i, l := range rec.Laps {
+		if _, err := tx.ExecContext(ctx, `INSERT INTO activity_lap (activity_id, idx, auto, start_s, end_s, timer_s,
+			distance_m, ascent_m, descent_m, avg_speed_mps, max_speed_mps, avg_heart_rate, max_heart_rate, avg_power, avg_cadence)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			id, i, l.Auto, l.StartS, l.EndS, l.TimerS, l.DistanceM, nullInt(l.AscentM), nullInt(l.DescentM),
+			nullFloat(l.AvgSpeed), nullFloat(l.MaxSpeed), nullInt(l.AvgHR), nullInt(l.MaxHR), nullInt(l.AvgPower), nullInt(l.AvgCadence)); err != nil {
+			return err
+		}
+	}
+	if _, err := tx.ExecContext(ctx, `DELETE FROM activity_effort WHERE activity_id = ?`, id); err != nil {
+		return err
+	}
+	for _, e := range rec.Efforts {
+		if _, err := tx.ExecContext(ctx, `INSERT INTO activity_effort (activity_id, grp, kind, key, value, start_s, end_s, extra)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, id, e.Group, e.Kind, e.Key, e.Value, e.StartS, e.EndS, nullFloat(e.Extra)); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // metricColumns lists the columns derived from a recording, in the order
@@ -172,7 +249,8 @@ func saveDerived(ctx context.Context, tx *sql.Tx, id int64, rec Recording) error
 const metricColumns = `sport, sub_sport, start_time, tz_offset_s, distance_m, timer_s, elapsed_s,
 	ascent_m, descent_m, avg_speed_mps, max_speed_mps, avg_heart_rate, max_heart_rate,
 	avg_power, max_power, avg_cadence, device_manufacturer, device_product, device_serial,
-	min_lat, min_lon, max_lat, max_lon, analysis_version`
+	min_lat, min_lon, max_lat, max_lon, training_effect, anaerobic_training_effect, training_load,
+	normalized_power, training_stress_score, intensity_factor, threshold_power, rpe, feel, analysis_version`
 
 func metricValues(a Activity) []any {
 	var minLat, minLon, maxLat, maxLon any
@@ -184,7 +262,11 @@ func metricValues(a Activity) []any {
 		a.AscentM, a.DescentM, nullFloat(a.AvgSpeed), nullFloat(a.MaxSpeed), nullInt(a.AvgHR), nullInt(a.MaxHR),
 		nullInt(a.AvgPower), nullInt(a.MaxPower), nullInt(a.AvgCadence),
 		a.DeviceManufacturer, a.DeviceProduct, a.DeviceSerial,
-		minLat, minLon, maxLat, maxLon, a.AnalysisVersion,
+		minLat, minLon, maxLat, maxLon,
+		nullFloat(a.Training.Effect), nullFloat(a.Training.AnaerobicEffect), nullFloat(a.Training.Load),
+		nullInt(a.Training.NormalizedPower), nullFloat(a.Training.TSS), nullFloat(a.Training.IntensityFactor),
+		nullInt(a.Training.ThresholdPower), nullFloat(a.Training.RPE), nullInt(a.Training.Feel),
+		a.AnalysisVersion,
 	}
 }
 
@@ -441,11 +523,14 @@ func scanActivity(sc scanner) (Activity, error) {
 		avgHR, maxHR, avgPw, maxPw, avgCad sql.NullInt64
 		ascent, descent                    sql.NullInt64
 		minLat, minLon, maxLat, maxLon     sql.NullFloat64
+		te, ate, load, tss, ifac, rpe      sql.NullFloat64
+		np, ftp, feel                      sql.NullInt64
 	)
 	err := sc.Scan(&a.ID, &name, &a.Sport, &a.SubSport, &start, &a.TZOffsetS, &a.DistanceM, &a.TimerS, &a.ElapsedS,
 		&ascent, &descent, &avgSpeed, &maxSpeed, &avgHR, &maxHR, &avgPw, &maxPw, &avgCad,
 		&a.DeviceManufacturer, &a.DeviceProduct, &a.DeviceSerial,
-		&minLat, &minLon, &maxLat, &maxLon, &a.AnalysisVersion, &created, &updated)
+		&minLat, &minLon, &maxLat, &maxLon, &te, &ate, &load, &np, &tss, &ifac, &ftp, &rpe, &feel,
+		&a.AnalysisVersion, &created, &updated)
 	if err != nil {
 		return a, err
 	}
@@ -454,6 +539,9 @@ func scanActivity(sc scanner) (Activity, error) {
 	a.AscentM, a.DescentM = int(ascent.Int64), int(descent.Int64)
 	a.AvgSpeed, a.MaxSpeed = avgSpeed.Float64, maxSpeed.Float64
 	a.AvgHR, a.MaxHR, a.AvgPower, a.MaxPower, a.AvgCadence = int(avgHR.Int64), int(maxHR.Int64), int(avgPw.Int64), int(maxPw.Int64), int(avgCad.Int64)
+	a.Training = Training{Effect: te.Float64, AnaerobicEffect: ate.Float64, Load: load.Float64,
+		NormalizedPower: int(np.Int64), TSS: tss.Float64, IntensityFactor: ifac.Float64,
+		ThresholdPower: int(ftp.Int64), RPE: rpe.Float64, Feel: int(feel.Int64)}
 	if minLat.Valid {
 		a.BBox = &BBox{MinLat: minLat.Float64, MinLon: minLon.Float64, MaxLat: maxLat.Float64, MaxLon: maxLon.Float64}
 	}

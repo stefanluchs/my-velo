@@ -4,7 +4,7 @@
 // cursor over a chart shows the position on the map.
 
 import uPlot from "./vendor/uplot-1.6.32/uPlot.esm.js";
-import { coordinates, positionAt, xAxis, chartSeries, thin } from "./activity-data.js";
+import { coordinates, positionAt, xAxis, chartSeries, thin, rangeIndices, sectionCoordinates, thinnedRange } from "./activity-data.js";
 import { bounds } from "./map-style.js";
 import { axisStyle, withAlpha } from "./theme-data.js";
 import { chartColors, onThemeChange } from "./theme.js";
@@ -23,12 +23,37 @@ export async function showActivity(id) {
     return;
   }
 
-  const position = await drawMap(stream);
+  const map = await drawMap(stream);
+  const position = map?.showPosition ?? null;
   let charts = drawCharts(stream, position);
+  let selected = null;
   onThemeChange(() => {
     charts?.destroy();
     charts = drawCharts(stream, position);
+    if (selected) charts?.select(...selected);
   });
+
+  // Laps and best efforts carry data-start/data-end (seconds since start):
+  // tapping one marks the section in map and charts.
+  const rows = [...document.querySelectorAll("[data-start][data-end]")];
+  const pick = (el) => {
+    const range = rangeIndices(stream.t, Number(el.dataset.start), Number(el.dataset.end));
+    if (!range) return;
+    rows.forEach((r) => r.classList.toggle("selected", r === el));
+    selected = range;
+    map?.highlight(sectionCoordinates(stream, ...range));
+    charts?.select(...range);
+    document.getElementById("map")?.scrollIntoView({ behavior: "smooth", block: "center" });
+  };
+  for (const el of rows) {
+    el.addEventListener("click", () => pick(el));
+    el.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        pick(el);
+      }
+    });
+  }
 }
 
 async function drawMap(stream) {
@@ -46,6 +71,10 @@ async function drawMap(stream) {
   map.addLayer({ id: "track", type: "line", source: "track", layout: { "line-join": "round", "line-cap": "round" },
     paint: { "line-color": getComputedStyle(container).getPropertyValue("--cat").trim() || "#d9480f", "line-width": 3.5 } });
 
+  map.addSource("section", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
+  map.addLayer({ id: "section", type: "line", source: "section", layout: { "line-join": "round", "line-cap": "round" },
+    paint: { "line-color": "#1971c2", "line-width": 6 } });
+
   new maplibregl.Marker({ color: "#2b8a3e", scale: 0.7 }).setLngLat(coords[0]).setPopup(new maplibregl.Popup().setText("Start")).addTo(map);
   new maplibregl.Marker({ color: "#c92a2a", scale: 0.7 }).setLngLat(coords.at(-1)).setPopup(new maplibregl.Popup().setText("Ziel")).addTo(map);
 
@@ -54,12 +83,19 @@ async function drawMap(stream) {
   el.className = "position-marker";
   const marker = new maplibregl.Marker({ element: el });
   let added = false;
-  return (lngLat) => {
-    marker.setLngLat(lngLat);
-    if (!added) {
-      marker.addTo(map);
-      added = true;
-    }
+  return {
+    showPosition(lngLat) {
+      marker.setLngLat(lngLat);
+      if (!added) {
+        marker.addTo(map);
+        added = true;
+      }
+    },
+    highlight(section) {
+      if (section.length < 2) return;
+      map.getSource("section").setData({ type: "Feature", geometry: { type: "LineString", coordinates: section } });
+      map.fitBounds(bounds(section), { padding: 50, maxZoom: 16 });
+    },
   };
 }
 
@@ -134,6 +170,15 @@ function drawCharts(stream, showPosition) {
   const resize = new ResizeObserver(() => plots.forEach((p) => p.setSize({ width: width(), height: p.height })));
   resize.observe(container);
   return {
+    select(first, last) {
+      const range = thinnedRange(index, first, last);
+      if (!range) return;
+      for (const p of plots) {
+        const left = p.valToPos(x[range[0]], "x");
+        const right = p.valToPos(x[range[1]], "x");
+        p.setSelect({ left, width: Math.max(2, right - left), top: 0, height: p.over.clientHeight }, false);
+      }
+    },
     destroy() {
       resize.disconnect();
       plots.forEach((p) => p.destroy());

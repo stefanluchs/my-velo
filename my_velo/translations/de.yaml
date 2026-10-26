@@ -18,3 +18,6 @@ configuration:
   garmin_sync_since:
     name: "Garmin: Aktivitäten ab"
     description: Erster Tag (JJJJ-MM-TT), ab dem der erste Abgleich Aktivitäten aus Garmin Connect lädt.
+  weather:
+    name: Wetter
+    description: Wetter zur Aktivität von Open-Meteo laden. Dabei werden nur die auf ca. 1 km gerundete Startposition und das Datum übertragen.

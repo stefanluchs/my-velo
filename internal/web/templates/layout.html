@@ -23,7 +23,7 @@
     <nav class="mainnav" aria-label="Hauptnavigation">
       <a href="./" {{if eq .Nav "index"}}aria-current="page"{{end}}>{{icon "home"}}<span>Übersicht</span></a>
       <a href="activities" {{if eq .Nav "activities"}}aria-current="page"{{end}}>{{icon "list"}}<span>Aktivitäten</span></a>
-      <a href="stats" {{if eq .Nav "stats"}}aria-current="page"{{end}}>{{icon "chart"}}<span>Statistik</span></a>
+      <a href="stats" {{if eq .Nav "stats"}}aria-current="page"{{end}}>{{icon "chart"}}<span>Training</span></a>
       <a href="heatmap" {{if eq .Nav "heatmap"}}aria-current="page"{{end}}>{{icon "map"}}<span>Heatmap</span></a>
       <a href="more" {{if or (eq .Nav "more") (eq .Nav "import") (eq .Nav "garmin")}}aria-current="page"{{end}}>{{icon "more"}}<span>Mehr</span></a>
     </nav>

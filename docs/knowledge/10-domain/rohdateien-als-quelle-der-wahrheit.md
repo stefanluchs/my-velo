@@ -10,7 +10,7 @@ sources:
   - "doc:docs/architecture.md"
   - "session:38cbacee"
 created: 2026-10-23
-updated: 2026-10-23
+updated: 2026-10-26
 supersedes: []
 superseded_by: null
 ---
@@ -21,13 +21,19 @@ superseded_by: null
 **Claim:** Die Original-FIT-Dateien unter `/data/raw/<sha[:2]>/<sha>.fit` sind die Quelle der Wahrheit; alle Streams, Tracks und Kennzahlen sind daraus abgeleitet und lassen sich ohne erneuten Abruf neu erzeugen.
 
 ## Kontext
-Ändert sich die Auswertungslogik, wird `importer.AnalysisVersion` erhöht. Ein Re-Import
-erkennt die veraltete `analysis_version` und leitet die Daten aus dem Archiv neu ab, auch für
-Aktivitäten, die Garmin nicht mehr liefert.
+Ändert sich die Auswertungslogik, wird `importer.AnalysisVersion` erhöht (Historie im Kommentar
+der Konstante). Seit `v0.8.0` startet my Velo dann beim Start automatisch den Job
+`importer.Reanalyze`: er liest `store.Outdated` und leitet jede Aktivität aus ihrer Rohdatei neu
+ab – ohne erneuten Import und auch für Aktivitäten, die Garmin nicht mehr liefert. Lokal dauerte
+das für 808 Aktivitäten 17 s. Laps und Bestleistungen werden dabei ersetzt, nicht ergänzt;
+Wetterdaten bleiben erhalten (Netzabruf, kein Ableitungsergebnis).
 
 ## Regeln
 - Gleicher Hash und gleiche `analysis_version` → `unchanged`, sonst `updated`.
 - Der vom Nutzer gesetzte Name bleibt beim Update erhalten.
+- Fehlt die Rohdatei, meldet die Neuberechnung „failed“ und die Aktivität behält ihre alten Daten.
+- Abgeleitete Tabellen (`activity_lap`, `activity_effort`) werden in `saveDerived` gelöscht und neu
+  geschrieben; neue abgeleitete Werte gehören dorthin, nicht in eigene Jobs.
 
 ## Abgrenzung
 - Nutzerdaten (Namen, Ziele, Einstellungen) stehen nur in SQLite und lassen sich nicht aus
@@ -43,6 +49,8 @@ Aktivitäten, die Garmin nicht mehr liefert.
   `AnalysisVersion`.
 
 ## Verbindungen
+- [[bestleistungen-regeln]]
+- [[wetter-ueber-open-meteo]]
 - [[moc-domain]]
 - [[analysis-version]]
 - [[fit-identitaetsschluessel]]

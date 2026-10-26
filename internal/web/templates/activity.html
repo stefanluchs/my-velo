@@ -42,7 +42,37 @@
   {{if .Activity.AvgHR}}<div><dt>⌀ / max. HF</dt><dd>{{.Activity.AvgHR}} / {{orDash .Activity.MaxHR}} <small>bpm</small></dd></div>{{end}}
   {{if .Activity.AvgPower}}<div><dt>⌀ / max. Leistung</dt><dd>{{.Activity.AvgPower}} / {{orDash .Activity.MaxPower}} <small>W</small></dd></div>{{end}}
   {{if .Activity.AvgCadence}}<div><dt>⌀ Trittfrequenz</dt><dd>{{.Activity.AvgCadence}} <small>rpm</small></dd></div>{{end}}
+  {{range .Training}}<div><dt>{{.Label}}</dt><dd>{{.Value}}</dd></div>{{end}}
 </dl>
+
+{{with .Weather}}
+<p class="weather-line card"><span class="weather-icon" aria-hidden="true">{{.Icon}}</span>
+  <span><strong>{{.Label}} · {{.Temp}}</strong><br><span class="hint">Wind {{.Wind}}{{with .Precip}} · {{.}}{{end}}</span></span>
+</p>
+{{end}}
+
+{{if .Efforts}}
+<section class="card efforts-card">
+  <h2>Bestleistungen</h2>
+  {{if .TopEfforts}}
+  <ul class="effort-medals">
+    {{range .TopEfforts}}<li><button type="button" class="effort-chip" data-start="{{.StartS}}" data-end="{{.EndS}}"><span aria-hidden="true">{{.Medal}}</span> {{.Name}} <strong>{{.Value}}</strong> <small>{{.Rank}}</small></button></li>{{end}}
+  </ul>
+  {{else}}
+  <p class="hint">Keine Platzierung unter den besten drei.</p>
+  {{end}}
+  <details>
+    <summary>Alle {{len .Efforts}} Werte</summary>
+    <table class="compact">
+      <tbody>
+      {{range .Efforts}}
+        <tr data-start="{{.StartS}}" data-end="{{.EndS}}"><th scope="row">{{.Name}}</th><td class="num"><strong>{{.Value}}</strong>{{with .Detail}}<br><small class="hint">{{.}}</small>{{end}}</td><td class="hint">{{.Medal}} {{.Rank}}</td></tr>
+      {{end}}
+      </tbody>
+    </table>
+  </details>
+</section>
+{{end}}
 
 <section class="card charts-card">
   <div class="chart-head">
@@ -52,6 +82,24 @@
   <div id="charts" class="charts" aria-label="Verlauf"></div>
   <p id="charts-status" class="hint">Messreihen werden geladen …</p>
 </section>
+
+{{if .Laps}}
+<section class="card laps-card">
+  <h2>{{if .AutoLaps}}Splits{{else}}Runden{{end}}</h2>
+  {{if .AutoLaps}}<p class="hint">Aufgezeichnet ohne Runden – automatisch alle {{with index .Laps 0}}{{.Distance}}{{end}} km geteilt.</p>{{end}}
+  <div class="table-wrap">
+  <table class="laps">
+    <thead><tr><th>#</th><th class="num">km</th><th class="num">Zeit</th><th class="num">{{if eq .Category "run"}}Pace{{else}}km/h{{end}}</th><th class="num">HF</th><th class="num">W</th><th class="num">Hm</th></tr></thead>
+    <tbody>
+    {{range .Laps}}
+      <tr data-start="{{.StartS}}" data-end="{{.EndS}}" tabindex="0"><td>{{.N}}</td><td class="num">{{.Distance}}</td><td class="num">{{.Time}}</td><td class="num">{{.Speed}}</td><td class="num">{{.HR}}</td><td class="num">{{.Power}}</td><td class="num">{{.Ascent}}</td></tr>
+    {{end}}
+    </tbody>
+  </table>
+  </div>
+  <p class="hint">Antippen markiert den Abschnitt in Karte und Diagrammen.</p>
+</section>
+{{end}}
 
 <script type="application/json" id="map-config">{{.MapConfig.JSON}}</script>
 <script type="module">

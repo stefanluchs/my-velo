@@ -212,3 +212,10 @@ func Label(sport, subSport string) string {
 
 // Icon returns the emoji of the activity's category.
 func Icon(sport, subSport string) string { return CategoryOf(sport, subSport).Icon }
+
+// Motorized reports e-bike activities. They count for distances, goals
+// and the heatmap but not for best efforts, where the motor would distort
+// speeds, climbs and power.
+func Motorized(sportName, subSport string) bool {
+	return sportName == "e_biking" || strings.HasPrefix(subSport, "e_bike")
+}

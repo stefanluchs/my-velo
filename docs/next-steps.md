@@ -15,7 +15,7 @@ Wissensspeicher [knowledge/](knowledge/00-index/index.md) – vor größeren Än
 | Phase 1 – MVP | 🟡 1.1–1.8 ✅, Sync seit `v0.6.0` über die Personal API (E7); 1.9 zurückgestellt (keine Doppelaufzeichnungen); offen: Abnahme des Syncs auf dem Pi |
 | Phase 2 – Analysen | 🟡 begonnen: Kategorien Indoor-Rad/Fitness und Eddington-Zahl ✅ (`v0.6.0`); als Nächstes Explorer-Tiles, Bestleistungen, HF-Zonen |
 | UI-Überarbeitung (mobile first, Light/Dark) | ✅ `v0.7.0`, Feinschliff für die HA-App `v0.7.1` ([ui-konzept.md](ui-konzept.md)) |
-| Training und Gesundheit | 📝 abgestimmt ([plan-training-gesundheit.md](plan-training-gesundheit.md)): v0.8.0 Runden, Wetter, Bestleistungen → v0.9.0 Zonen, Belastung → v0.10.0 Gesundheit |
+| Training und Gesundheit | 🟡 [plan-training-gesundheit.md](plan-training-gesundheit.md): v0.8.0 Runden, Wetter, Bestleistungen ✅ → v0.9.0 Zonen, Belastung → v0.10.0 Gesundheit |
 
 Vorhanden im Repository:
 
@@ -75,6 +75,14 @@ für sich lauffähig, getestet und releasebar ist.
   (GeoJSON, Property `t` = lokale Startzeit als Unix-Sekunden) und filtert im Browser
   (`static/heatmap-data.js`, Node-getestet). Bei sehr vielen Aktivitäten (> 2.000) wären
   serverseitige Vektor-/Raster-Kacheln der nächste Schritt; mit ca. 100 Fahrten pro Jahr unnötig.
+- **v0.8.0 (26.10.2026):** `AnalysisVersion` 2 – Neuberechnung aus `/data/raw` beim Start
+  (`importer.Reanalyze`, Job „Neuberechnung …“), Migration 0003 (Trainingsfelder, `activity_lap`,
+  `activity_effort`, `activity_weather`). Algorithmen in `internal/analysis/efforts.go`
+  (schnellste Distanz interpoliert, Leistungskurve auf 1-s-Raster, Anstieg mit 10 m Toleranz,
+  Splits), Pläne je Kategorie in `analysis/records.go`, E-Bikes ausgenommen (`sport.Motorized`).
+  Wetter: `internal/weather` (Open-Meteo, Hintergrunddienst, Fehler nach 24 h erneut).
+  Seite `/records`, Tab „Training“ mit Unterseiten (`templates/training_nav.html`).
+  Lokal geprüft: Upgrade einer 0.7.1-Datenbank mit 808 Aktivitäten, Neuberechnung 17 s, 0 Fehler.
 - **v0.7.0 (23.10.2026):** neue Oberfläche nach [ui-konzept.md](ui-konzept.md): Design-Tokens
   hell/dunkel in `static/app.css` (hell Standard, Umschalter auf `/more`, `static/theme.js`),
   Bottom-Navigation, Aktivitätskacheln (`templates/activity_tile.html`, `internal/web/tiles.go`)

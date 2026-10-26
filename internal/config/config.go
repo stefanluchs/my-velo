@@ -26,6 +26,8 @@ type Options struct {
 	GarminSyncIntervalHours int `json:"garmin_sync_interval_hours"`
 	// GarminSyncSince is the first day (YYYY-MM-DD) of the initial Garmin backfill.
 	GarminSyncSince string `json:"garmin_sync_since"`
+	// Weather enables weather lookups at Open-Meteo for activities with GPS.
+	Weather bool `json:"weather"`
 }
 
 // DefaultGarminSince is the backfill start if the option is missing or invalid.
@@ -34,7 +36,7 @@ const DefaultGarminSince = "2026-01-01"
 // Defaults returns the options used when no options file exists, e.g. during
 // local development.
 func Defaults() Options {
-	return Options{LogLevel: "info", MapProvider: "osm", GarminSyncIntervalHours: 2, GarminSyncSince: DefaultGarminSince}
+	return Options{LogLevel: "info", MapProvider: "osm", GarminSyncIntervalHours: 2, GarminSyncSince: DefaultGarminSince, Weather: true}
 }
 
 // Load reads the options file. A missing file yields the defaults; any other

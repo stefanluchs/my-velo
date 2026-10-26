@@ -14,6 +14,7 @@ import (
 	"context"
 	"errors"
 	"flag"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
@@ -30,6 +31,7 @@ import (
 	"github.com/stefanluchs/my-velo/internal/ha"
 	"github.com/stefanluchs/my-velo/internal/importer"
 	"github.com/stefanluchs/my-velo/internal/store"
+	"github.com/stefanluchs/my-velo/internal/weather"
 	"github.com/stefanluchs/my-velo/internal/web"
 )
 
@@ -90,7 +92,13 @@ func run(logger *slog.Logger, opts config.Options, addr, dataDir, importDir stri
 	imp := &importer.Importer{Store: st, RawDir: filepath.Join(dataDir, "raw"), Logger: logger}
 	removeLegacyGarminTokens(logger, filepath.Join(dataDir, "garmin"))
 	garminSvc := newGarminService(logger, opts, st, imp, jobs)
+	startReanalysis(jobCtx, logger, imp, jobs)
 	go garminSvc.RunScheduler(jobCtx, 2*time.Minute)
+	if opts.Weather {
+		weatherSvc := &weather.Service{Client: weather.NewClient(), Store: st, Logger: logger,
+			Interval: 15 * time.Minute, Delay: time.Second, RetryAfter: 24 * time.Hour, Batch: 1000}
+		go weatherSvc.Run(jobCtx, time.Minute)
+	}
 
 	handler := web.NewHandler(web.Deps{
 		Info: web.Info{
@@ -133,6 +141,31 @@ func run(logger *slog.Logger, opts config.Options, addr, dataDir, importDir stri
 	web.WaitForJobs(shutdownCtx, jobs)
 	logger.Info("my Velo stopped")
 	return nil
+}
+
+// startReanalysis re-derives activities from their raw files after an
+// update that raised importer.AnalysisVersion. It runs as an import job, so
+// progress shows on the import page and the Garmin sync waits for it.
+func startReanalysis(ctx context.Context, logger *slog.Logger, imp *importer.Importer, jobs *web.Jobs) {
+	n, err := imp.Outdated(ctx)
+	if err != nil {
+		logger.Error("check analysis version", "err", err)
+		return
+	}
+	if n == 0 {
+		return
+	}
+	label := fmt.Sprintf("Neuberechnung von %d Aktivitäten (Analyse-Version %d)", n, importer.AnalysisVersion)
+	err = jobs.Start(label, func(ctx context.Context, report func(importer.Result)) error {
+		stats, err := imp.Reanalyze(ctx, report)
+		logger.Info("reanalysis finished", "updated", stats.Updated, "failed", stats.Failed, "err", err)
+		return err
+	}, nil)
+	if err != nil {
+		logger.Error("start reanalysis", "err", err)
+		return
+	}
+	logger.Info("reanalysis started", "activities", n, "analysis_version", importer.AnalysisVersion)
 }
 
 // newGarminService wires the Garmin Connect sync via the Personal API.

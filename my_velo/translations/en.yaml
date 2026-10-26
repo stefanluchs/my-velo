@@ -18,3 +18,6 @@ configuration:
   garmin_sync_since:
     name: "Garmin: activities since"
     description: First day (YYYY-MM-DD) the initial sync downloads from Garmin Connect.
+  weather:
+    name: Weather
+    description: Load the weather of each activity from Open-Meteo. Only the start position rounded to about 1 km and the date are sent.
