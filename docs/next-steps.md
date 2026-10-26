@@ -12,7 +12,7 @@ Wissensspeicher [knowledge/](knowledge/00-index/index.md) – vor größeren Än
 |---|---|
 | Evaluierung und Entscheidungen E1–E6 | ✅ abgeschlossen ([plan.md §9](plan.md#9-entscheidungen)) |
 | Phase 0 – Spikes | ✅ abgeschlossen am 23.10.2026 ([spikes/](spikes/README.md)) |
-| Phase 1 – MVP | 🟡 1.1–1.8 ✅, Sync seit `v0.6.0` über die Personal API (E7); 1.9 zurückgestellt (keine Doppelaufzeichnungen); offen: Abnahme des Syncs auf dem Pi |
+| Phase 1 – MVP | 🟡 1.1–1.8 ✅, Sync seit `v0.6.0` über die Personal API (E7); 1.9 zurückgestellt (keine Doppelaufzeichnungen); Sync auf dem Pi abgenommen (26.10.2026) |
 | Phase 2 – Analysen | 🟡 begonnen: Kategorien Indoor-Rad/Fitness und Eddington-Zahl ✅ (`v0.6.0`); als Nächstes Explorer-Tiles, Bestleistungen, HF-Zonen |
 | UI-Überarbeitung (mobile first, Light/Dark) | ✅ `v0.7.0`, Feinschliff für die HA-App `v0.7.1` ([ui-konzept.md](ui-konzept.md)) |
 | Training und Gesundheit | 🟡 [plan-training-gesundheit.md](plan-training-gesundheit.md): v0.8.0 Runden, Wetter, Bestleistungen ✅ → v0.9.0 Zonen, Belastung ✅ → v0.10.0 Gesundheit aus dem Export ✅ → [S5](spikes/s5-health-api.md) (Test mit eigenem Schlüssel) → API-Abgleich |
@@ -101,14 +101,16 @@ für sich lauffähig, getestet und releasebar ist.
   Bottom-Navigation, Aktivitätskacheln (`templates/activity_tile.html`, `internal/web/tiles.go`)
   mit Mini-Route aus `internal/routesvg`, Nachladen per htmx (`HX-Request` → Fragment
   `activityFeed`), Dashboard in `internal/web/dashboard.go` (Zeitraum, Zielring, 12-Wochen-Verlauf).
-  Visuelle Abnahme steht in §10 des Konzepts; auf dem Pi offen: kurzer Blick in Panel und HA-App.
+  Visuelle Abnahme steht in §10 des Konzepts; in der HA-App geprüft (Feinschliff in `v0.7.1`).
 - **v0.6.0 (23.10.2026):** Sync über die **Personal API** (S4/E7): `garmin.Client` tauscht den
   Schlüssel aus `garmin_api_key` gegen ein 24-h-Token (Text-JWT, Cache im Speicher), listet
   seitenweise und lädt Original-FIT-ZIPs; 401/403 → `ErrAuthRequired` → einmalige HA-Benachrichtigung.
   `garmin-fetch`/Python entfernt (Image 27,5 MB). Kategorien sind Regeln aus Sportart + Unterart,
   `sport.Condition` erzeugt das passende SQL (Test prüft Gleichheit mit `CategoryOf`).
   Eddington in `internal/analysis`.
-- **Abnahme v0.6.0 auf dem Pi:** Schlüssel als `garmin_api_key` eintragen, Add-on neu starten,
+- **Abnahme auf dem Pi ✅ (26.10.2026):** Update auf `v0.10.0` inkl. automatischer Neuberechnung,
+  Ordner-Import des Exports mit Gesundheitsdaten und Garmin-Abgleich über die Personal API laufen.
+  Ursprüngliche Prüfanleitung für v0.6.0: Schlüssel als `garmin_api_key` eintragen, Add-on neu starten,
   nach ~2 min Panel → Garmin: erster Abgleich erfolgreich, die Fahrten ab 01.01.2026 „bekannt“ bzw.
   verknüpft, Namen aus Garmin. Log: `removed legacy garmin tokens`, `garmin sync finished`.
 - **Historisch, 1.8 (v0.5.x):** (Release `v0.5.0`), aber **noch nicht live gegen Garmin geprüft** (Tests mit
