@@ -14,6 +14,7 @@ Zurück zum [[index]].
 - [[eigenes-go-add-on-option-e]] — Option E statt Dreeve, Endurain, garmin-grafana, Lovelace
 - [[frontend-ohne-node-build]] — `html/template`, htmx, MapLibre, uPlot als ES-Module
 - [[ui-mobile-first-light-standard]] — 2026-10-23: Bottom-Tabs, Velo-Orange, Hell als Standard, Kacheln
+- [[bereitschaft-modell-kalibriert]] — 2026-10-26: Bereitschaft stufenlos + Belastungsfaktor, ρ 0,75 gegen Garmin
 - [[training-und-gesundheit-quellen-und-schwellen]] — 2026-10-26: Garmin-Last + eigene, Schwellen von Garmin, v0.8–v0.10
 
 ## Zurückgestellt

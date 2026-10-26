@@ -40,3 +40,4 @@ superseded_by: null
 - [[moc-domain]]
 - [[trainings-und-gesundheitsdaten-quellen]]
 - [[garmin-bulk-export-aufbau]]
+- [[bereitschaft-modell-kalibriert]]

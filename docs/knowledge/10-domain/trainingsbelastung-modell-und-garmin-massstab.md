@@ -37,3 +37,4 @@ ATL/EWMA28 (Median 0,89), die Gewichtung der Uhr ist nicht offengelegt.
 - [[moc-domain]]
 - [[zonen-und-schwellen-aus-fit]]
 - [[trainings-und-gesundheitsdaten-quellen]]
+- [[bereitschaft-modell-kalibriert]]
