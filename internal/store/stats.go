@@ -20,6 +20,8 @@ const (
 	ByMonth Grouping = "month"
 	// ByWeek uses ISO 8601 weeks (Monday start, week 1 contains 4 January).
 	ByWeek Grouping = "week"
+	// ByDay groups by local date (YYYY-MM-DD).
+	ByDay Grouping = "day"
 )
 
 func (g Grouping) format() (string, error) {
@@ -30,6 +32,8 @@ func (g Grouping) format() (string, error) {
 		return "%Y-%m", nil
 	case ByWeek:
 		return "%G-W%V", nil
+	case ByDay:
+		return "%Y-%m-%d", nil
 	}
 	return "", fmt.Errorf("unknown grouping %q", g)
 }

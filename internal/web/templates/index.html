@@ -28,6 +28,15 @@
   <p class="hint small"><a href="health">Gesundheit</a> · <a href="settings">Regeln anpassen</a> · keine medizinische Bewertung</p>
 </section>
 {{end}}
+{{with .Week}}
+<section class="card insight-card week-card" aria-label="Wochenrückblick">
+  <h2>{{.Title}}</h2>
+  {{if .Statements}}<ul class="statements">{{range .Statements}}<li class="{{.Tone}}">{{.Text}}</li>{{end}}</ul>
+  {{else if .HasBase}}<p class="hint">Alles im Rahmen deines {{.RefLabel}}s.</p>
+  {{else}}<p class="hint">Noch zu wenig Verlauf für einen Vergleich.</p>{{end}}
+  <p class="hint small"><a href="{{.Link}}">Rückblick</a></p>
+</section>
+{{end}}
 <nav class="chips scroll-x" aria-label="Sportart">
   {{range .Categories}}<a class="chip {{if eq .ID $.Data.Category.ID}}active{{end}}" href="./?cat={{.ID}}{{if ne $.Data.Period "week"}}&amp;p={{$.Data.Period}}{{end}}">{{.Icon}} {{.Label}}</a>{{end}}
 </nav>

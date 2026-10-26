@@ -110,7 +110,7 @@ func Encode(tb testing.TB, o Options) []byte {
 			SetTotalElapsedTime(uint32(o.Points*1000)).
 			SetTotalAscent(12))
 		if o.Zones {
-			act.UserProfile = mesgdef.NewUserProfile(nil).SetRestingHeartRate(50).SetGender(typedef.GenderMale)
+			act.UserProfile = mesgdef.NewUserProfile(nil).SetRestingHeartRate(50).SetGender(typedef.GenderMale).SetAge(45)
 			act.ZonesTargets = append(act.ZonesTargets, mesgdef.NewZonesTarget(nil).SetMaxHeartRate(190).
 				SetThresholdHeartRate(170).SetFunctionalThresholdPower(251))
 			ms := uint32(o.Points * 1000)

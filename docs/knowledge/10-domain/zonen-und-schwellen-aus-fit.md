@@ -31,6 +31,10 @@ Layout: `hr_zone_high_boundary` hat 6 Werte (Untergrenze Z1 … Obergrenze Z5), 
   nur übernehmen, wenn Leistung aufgezeichnet wurde; FTP nur dann anzeigen.
 - Zone 0 (unter Z1) ist Aufwärmen/Stillstand und wird in Auswertungen nicht gezeigt.
 - Der Ruhepuls fehlt in manchen Dateien → dort kein TRIMP.
+- **Laufdateien tragen die Lauf-FTP** (Laufleistung, im eigenen Bestand 200–430 W) im selben Feld wie die
+  Rad-FTP. FTP-Verläufe daher nur aus `sport = 'cycling'` bilden (`store.FTPIn`), sonst springt der Wert.
+- `user_profile` enthält auch Alter (Jahre zum Aktivitätszeitpunkt) und Geschlecht → Profil für Normwerte
+  ohne Eingabe (`Importer.LatestProfile`).
 
 ## Auswirkung auf die Implementierung
 - Manuelle Schwellen (`store.Override`, ab Datum) ersetzen die Gerätewerte und rechnen Standardzonen
@@ -43,3 +47,4 @@ Layout: `hr_zone_high_boundary` hat 6 Werte (Untergrenze Z1 … Obergrenze Z5), 
 - [[rohdateien-als-quelle-der-wahrheit]]
 - [[training-und-gesundheit-quellen-und-schwellen]]
 - [[trainingsbelastung-modell-und-garmin-massstab]]
+- [[rueckblick-und-entwicklung-vergleichsregeln]]

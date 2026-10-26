@@ -111,6 +111,7 @@ type statsData struct {
 	EddingtonYear analysis.Eddington
 	MaxGoal       int
 	Charts        template.JS
+	Trends        *trendCard
 }
 
 // chartData is passed to static/stats.js.
@@ -184,6 +185,10 @@ func (s *server) stats(w http.ResponseWriter, r *http.Request) {
 	}
 	if d.ByYear, err = s.Store.Aggregate(ctx, base, store.ByYear); err != nil {
 		s.serverError(w, "aggregate years", err)
+		return
+	}
+	if d.Trends, err = s.trainingTrends(ctx, cat.ID, today); err != nil {
+		s.serverError(w, "trends", err)
 		return
 	}
 	charts, err := s.chartData(ctx, base, cat.ID, year, unit, today)

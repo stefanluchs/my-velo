@@ -61,6 +61,7 @@ type healthCard struct {
 	Label, Value, Detail, Date string
 	Metric                     string
 	Note                       *normalNote
+	Norm                       *insight.Statement
 }
 
 type healthData struct {
@@ -69,6 +70,7 @@ type healthData struct {
 	Chart  template.JS
 	Empty  bool
 	Days   int
+	Trends *trendCard
 }
 
 type healthChartData struct {
@@ -154,6 +156,15 @@ func (s *server) healthPage(w http.ResponseWriter, r *http.Request) {
 		if n, ok := notes[d.Cards[i].Metric]; ok {
 			d.Cards[i].Note = &n
 		}
+	}
+
+	if err := s.healthNorms(ctx, d.Cards, latest, today); err != nil {
+		s.serverError(w, "health norms", err)
+		return
+	}
+	if d.Trends, err = s.healthTrends(ctx, today); err != nil {
+		s.serverError(w, "health trends", err)
+		return
 	}
 
 	from := time.Unix(0, 0).UTC()

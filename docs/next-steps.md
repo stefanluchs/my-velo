@@ -16,7 +16,7 @@ Wissensspeicher [knowledge/](knowledge/00-index/index.md) – vor größeren Än
 | Phase 2 – Analysen | 🟡 begonnen: Kategorien Indoor-Rad/Fitness und Eddington-Zahl ✅ (`v0.6.0`); als Nächstes Explorer-Tiles, Bestleistungen, HF-Zonen |
 | UI-Überarbeitung (mobile first, Light/Dark) | ✅ `v0.7.0`, Feinschliff für die HA-App `v0.7.1` ([ui-konzept.md](ui-konzept.md)) |
 | Training und Gesundheit | 🟡 [plan-training-gesundheit.md](plan-training-gesundheit.md): v0.8.0 Runden, Wetter, Bestleistungen ✅ → v0.9.0 Zonen, Belastung ✅ → v0.10.0 Gesundheit aus dem Export ✅ → [S5](spikes/s5-health-api.md) ✅ → v0.11.0 API-Abgleich ✅ |
-| Einordnung („Was heißt das für mich?“) | 🟡 [konzept-einordnung.md](konzept-einordnung.md): v0.12.0 Normalbereiche, Bereitschaft, Empfehlung, Verteilung ✅ → v0.13.0 Rückblick, Trends, Normwerte → v0.14.0 Zusammenhänge |
+| Einordnung („Was heißt das für mich?“) | 🟡 [konzept-einordnung.md](konzept-einordnung.md): v0.12.0 Normalbereiche, Bereitschaft, Empfehlung, Verteilung ✅ → v0.13.0 Rückblick, Trends, Normwerte ✅ → v0.14.0 Zusammenhänge |
 
 Vorhanden im Repository:
 
@@ -76,6 +76,11 @@ für sich lauffähig, getestet und releasebar ist.
   (GeoJSON, Property `t` = lokale Startzeit als Unix-Sekunden) und filtert im Browser
   (`static/heatmap-data.js`, Node-getestet). Bei sehr vielen Aktivitäten (> 2.000) wären
   serverseitige Vektor-/Raster-Kacheln der nächste Schritt; mit ca. 100 Fahrten pro Jahr unnötig.
+- **v0.13.0 (26.10.2026):** `insight.Review`/`Baseline` (Rückblick), `AssessTrend` (Entwicklung),
+  `VO2maxNorm` u. a. (Normwerte). Store: `NewRecords`, `FTPIn` (nur Radfahrten), `FirstLocalStart`,
+  `RecentSources`, Gruppierung `ByDay`. Profil aus `user_profile` der neuesten FIT-Dateien
+  (`Importer.LatestProfile`, 1 h im Speicher), überschreibbar unter dem Setting `insight.profile`.
+  Seite `/review`. Mit dem echten Export geprüft.
 - **v0.12.0 (26.10.2026):** Paket `internal/insight` (Normalbereich Median/MAD je Kennzahl,
   `ComputeReadiness`, `Recommend`, `AssessDistribution`), Einstellungen als JSON unter dem Setting
   `insight.settings` (Seite `/settings`). Tageswerte via `store.LatestHealthBefore(heute)`.

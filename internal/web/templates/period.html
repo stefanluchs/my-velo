@@ -12,6 +12,15 @@
   </p>
 {{end}}
 
+{{define "trendCard"}}
+<section class="card insight-card" aria-label="Entwicklung">
+  <h2>Entwicklung <span class="hint">· letzte 90 Tage</span></h2>
+  {{if .Statements}}<ul class="statements">{{range .Statements}}<li class="{{.Tone}}">{{.Text}}</li>{{end}}</ul>{{end}}
+  {{with .Stable}}<p class="hint">Stabil: {{.}}</p>{{end}}
+  <p class="hint small">Verglichen mit den 90 Tagen davor und dem Vorjahreszeitraum; genannt ab einer Mindeständerung.</p>
+</section>
+{{end}}
+
 {{define "periodCard"}}
 <section class="card period">
   {{template "periodBody" .}}

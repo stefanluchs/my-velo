@@ -146,9 +146,32 @@ type Zones struct {
 // Activity is a decoded activity file: summary, laps, zones and per-record streams.
 type Activity struct {
 	Summary
-	Laps   []Lap
-	Zones  Zones
-	Stream Stream
+	Laps    []Lap
+	Zones   Zones
+	Stream  Stream
+	Profile Profile
+}
+
+// Profile is the user profile stored by the device; zero values mean "not
+// recorded".
+type Profile struct {
+	Age    int    // years at the time of the activity
+	Gender string // "male", "female" or ""
+}
+
+func profile(act *filedef.Activity) Profile {
+	p := act.UserProfile
+	if p == nil {
+		return Profile{}
+	}
+	out := Profile{Age: validU8(p.Age)}
+	switch p.Gender {
+	case typedef.GenderMale:
+		out.Gender = "male"
+	case typedef.GenderFemale:
+		out.Gender = "female"
+	}
+	return out
 }
 
 // IdentityKey returns the natural key of a recording, or "" if the file_id is
@@ -230,7 +253,7 @@ func Decode(raw []byte) (*Activity, error) {
 	summarizeSessions(&s, act.Sessions)
 	stream := buildStream(&s, act.Records)
 	s.TZOffsetS = tzOffset(act.Activity)
-	return &Activity{Summary: s, Laps: laps(s.StartTime, act.Laps), Zones: zones(act, &s), Stream: stream}, nil
+	return &Activity{Summary: s, Laps: laps(s.StartTime, act.Laps), Zones: zones(act, &s), Stream: stream, Profile: profile(act)}, nil
 }
 
 // tzOffset derives the UTC offset from the activity message. Offsets outside

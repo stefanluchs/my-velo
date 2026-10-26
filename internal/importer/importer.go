@@ -467,3 +467,31 @@ func computed(kind string, bounds, seconds []float64) []store.ZoneSeconds {
 	}
 	return out
 }
+
+// LatestProfile returns the user profile of the newest activity whose file
+// records age and gender, and the start of that activity. Only the newest
+// few files are decoded; ok is false if none of them has a profile.
+func (im *Importer) LatestProfile(ctx context.Context) (p fitfile.Profile, at time.Time, ok bool, err error) {
+	if im.RawDir == "" {
+		return p, at, false, nil
+	}
+	files, err := im.Store.RecentSources(ctx, 10)
+	if err != nil {
+		return p, at, false, err
+	}
+	for _, f := range files {
+		if len(f.SHA256) < 2 {
+			continue
+		}
+		raw, err := os.ReadFile(filepath.Join(im.RawDir, f.SHA256[:2], f.SHA256+".fit"))
+		if err != nil {
+			continue
+		}
+		act, err := fitfile.Decode(raw)
+		if err != nil || act.Profile.Age == 0 || act.Profile.Gender == "" {
+			continue
+		}
+		return act.Profile, act.StartTime, true, nil
+	}
+	return p, at, false, nil
+}

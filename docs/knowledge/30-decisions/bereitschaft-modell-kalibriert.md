@@ -51,3 +51,4 @@ Nachtwerte von heute, zeigt die Karte den Stand von gestern.
 - [[gesundheitsdaten-im-export]]
 - [[training-und-gesundheit-quellen-und-schwellen]]
 - [[tageswerte-erst-am-folgetag-vollstaendig]]
+- [[rueckblick-und-entwicklung-vergleichsregeln]]

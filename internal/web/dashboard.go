@@ -45,6 +45,7 @@ type indexData struct {
 	Trend      trend
 	Recent     []activityTile
 	Today      *todayView
+	Week       *weekCard
 }
 
 // trend is a bar sparkline of weekly distances, drawn as server-side SVG.
@@ -88,6 +89,10 @@ func (s *server) index(w http.ResponseWriter, r *http.Request) {
 	}
 	if d.Today, err = s.today(ctx); err != nil {
 		s.serverError(w, "today", err)
+		return
+	}
+	if d.Week, err = s.weekCard(ctx, localDate(s.now())); err != nil {
+		s.serverError(w, "week review", err)
 		return
 	}
 	var ok bool

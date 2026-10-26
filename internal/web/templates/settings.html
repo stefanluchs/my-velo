@@ -3,7 +3,7 @@
 <h1>Einordnung anpassen</h1>
 <section class="card">
   <p class="hint">Die Standardwerte sind an deiner Historie kalibriert (Bereitschaft gegen Garmins Training Readiness,
-    Rangkorrelation 0,75). Änderungen wirken sofort auf die Karte „Heute“ und die Gesundheitsseite.
+    Rangkorrelation 0,77). Änderungen wirken sofort auf die Karte „Heute“ und die Gesundheitsseite.
     {{if .Custom}}<strong>Eigene Werte aktiv.</strong>{{end}}</p>
   <form class="stack settings-form" hx-post="settings/insight" hx-target="#settings-error" hx-swap="innerHTML">
     <div class="settings-grid">
@@ -16,6 +16,26 @@
       <button type="button" class="secondary" hx-post="settings/insight/reset" hx-target="#settings-error" hx-swap="innerHTML">Auf Standard zurücksetzen</button>
     </div>
     <p id="settings-error" class="error" role="alert"></p>
+  </form>
+</section>
+<section class="card">
+  <h2>Profil für Normwerte</h2>
+  <p class="hint">Alter und Geschlecht ordnen VO2max, Schlaf und Schritte gegenüber Gleichaltrigen ein.
+    {{with .Profile.FitText}}Aus deinen FIT-Dateien: {{.}}.{{else}}In deinen FIT-Dateien ist kein Profil hinterlegt.{{end}}
+    Leere Felder übernehmen die Werte der Uhr.</p>
+  <form class="stack settings-form" hx-post="settings/profile" hx-target="#profile-error" hx-swap="innerHTML">
+    <div class="settings-grid">
+      <label>Geburtsjahr <input type="number" name="birth_year" value="{{.Profile.BirthYear}}" min="1900" max="2100" step="1" placeholder="aus der Uhr"></label>
+      <label>Geschlecht
+        <select name="sex">
+          <option value="" {{if eq .Profile.Sex ""}}selected{{end}}>aus der Uhr</option>
+          <option value="male" {{if eq .Profile.Sex "male"}}selected{{end}}>männlich</option>
+          <option value="female" {{if eq .Profile.Sex "female"}}selected{{end}}>weiblich</option>
+        </select>
+      </label>
+    </div>
+    <div class="actions"><button type="submit">Profil speichern</button></div>
+    <p id="profile-error" class="error" role="alert"></p>
   </form>
 </section>
 <section class="card hint">

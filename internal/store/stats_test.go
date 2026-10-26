@@ -37,7 +37,7 @@ func TestAggregateByLocalCalendar(t *testing.T) {
 	if len(weeks) != 2 || weeks[0].Key != "2026-W53" || weeks[0].Count != 2 || weeks[1].Key != "2027-W01" {
 		t.Errorf("weeks %+v", weeks)
 	}
-	if _, err := s.Aggregate(ctx, bike, "day"); err == nil {
+	if _, err := s.Aggregate(ctx, bike, "hour"); err == nil {
 		t.Error("unknown grouping must fail")
 	}
 }

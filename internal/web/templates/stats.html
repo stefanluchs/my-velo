@@ -36,6 +36,8 @@
   </section>
 </div>
 
+{{with .Trends}}{{template "trendCard" .}}{{end}}
+
 <section class="card">
   <div class="chart-head">
     <h2>{{.Category.Label}} {{.Year}} pro {{if eq .Unit "week"}}Woche{{else}}Monat{{end}}</h2>

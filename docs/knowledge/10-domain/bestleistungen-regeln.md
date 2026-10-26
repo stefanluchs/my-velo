@@ -39,6 +39,7 @@ superseded_by: null
 
 ## Verbindungen
 - [[moc-domain]]
+- [[rueckblick-und-entwicklung-vergleichsregeln]]
 - [[rohdateien-als-quelle-der-wahrheit]]
 - [[sportkategorien-als-regeln]]
 - [[training-und-gesundheit-quellen-und-schwellen]]

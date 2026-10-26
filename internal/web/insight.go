@@ -184,8 +184,9 @@ type settingField struct {
 }
 
 type settingsData struct {
-	Fields []settingField
-	Custom bool
+	Fields  []settingField
+	Custom  bool
+	Profile profileView
 }
 
 func settingFields(c insight.Settings) []settingField {
@@ -212,7 +213,7 @@ func settingFields(c insight.Settings) []settingField {
 func (s *server) settingsPage(w http.ResponseWriter, r *http.Request) {
 	cfg := s.insightSettings(r.Context())
 	_, custom, _ := s.Store.Setting(r.Context(), insightSettingsKey)
-	s.render(w, r, "settings.html", "more", settingsData{Fields: settingFields(cfg), Custom: custom})
+	s.render(w, r, "settings.html", "more", settingsData{Fields: settingFields(cfg), Custom: custom, Profile: s.profileView(r.Context())})
 }
 
 func (s *server) saveSettings(w http.ResponseWriter, r *http.Request) {

@@ -147,9 +147,20 @@ Die Karte **Heute** auf der Übersicht fasst zusammen, wie erholt du bist und wa
   Liegt der Ruhepuls an 3 Tagen in Folge 5 bpm über deinem Normal, erscheint ein Hinweis.
 - Fehlen die Werte von heute (Uhr nachts nicht getragen), gilt der Stand von gestern.
 
-Die Gesundheitskarten zeigen die Lage zum Normalbereich, unter **Training → Zonen** steht eine
-Einordnung der Trainingsverteilung der letzten 4 Wochen. Unter **Mehr → Einordnung** lassen sich
-Gewichte, Grenzen und Regeln anpassen. Die Hinweise sind keine medizinische Bewertung.
+Die Gesundheitskarten zeigen die Lage zum Normalbereich und eine **Norm**-Zeile (VO2max nach Alter und
+Geschlecht, Ruhepuls, Schlaf und Schritte im 30-Tage-Schnitt, Fitnessalter). Unter **Training → Zonen**
+steht eine Einordnung der Trainingsverteilung der letzten 4 Wochen.
+
+**Rückblick:** Unter **Training → Rückblick** lässt sich jede Woche und jeder Monat durchblättern – mit
+Vergleich zum 4-Wochen- bzw. 12-Monats-Schnitt (laufende Zeiträume anteilig) und den neuen Bestleistungen
+(besser als alle früheren). Die Übersicht zeigt ab Mittwoch die laufende Woche, montags und dienstags die
+letzte. Genannt werden nur auffällige Abweichungen: Belastung oder Distanz ±15 %, Schlaf ±20 min,
+Ruhepuls ±2 bpm, HRV ±5 %.
+
+**Entwicklung:** Training → Statistik und Gesundheit vergleichen die letzten 90 Tage mit den 90 Tagen
+davor und dem Vorjahreszeitraum (FTP, beste Leistungen und Zeiten, Fitness; Ruhepuls, HRV, VO2max). Unter **Mehr → Einordnung** lassen sich
+Gewichte, Grenzen und Regeln anpassen sowie Geburtsjahr und Geschlecht für die Normwerte eintragen (leer =
+Profil der Uhr aus den FIT-Dateien). Die Hinweise sind keine medizinische Bewertung.
 
 ## Belastung und Zonen
 
