@@ -15,6 +15,7 @@ import (
 
 	"github.com/stefanluchs/my-velo/internal/analysis"
 	"github.com/stefanluchs/my-velo/internal/importer"
+	"github.com/stefanluchs/my-velo/internal/insight"
 	"github.com/stefanluchs/my-velo/internal/sport"
 	"github.com/stefanluchs/my-velo/internal/store"
 )
@@ -161,6 +162,9 @@ type zonesData struct {
 	Chart      template.JS
 	Empty      bool
 
+	// Assessment of the last four weeks (all sports).
+	Assessment []string
+
 	Latest    store.Thresholds
 	LatestAt  string
 	HasLatest bool
@@ -270,6 +274,10 @@ func (s *server) zonesData(ctx context.Context, r *http.Request) (zonesData, err
 	}
 	b, _ := json.Marshal(chart)
 	d.Chart = template.JS(b)
+
+	if d.Assessment, err = s.distribution(ctx, today); err != nil {
+		return d, err
+	}
 
 	latest, at, ok, err := s.Store.LatestThresholds(ctx)
 	if err != nil {
@@ -393,4 +401,31 @@ func (s *server) changeOverrides(w http.ResponseWriter, r *http.Request, list []
 	}
 	w.Header().Set("HX-Refresh", "true")
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// distribution assesses the last four weeks: HR zones of all sports, the
+// daily load of the last seven days and the number of active days.
+func (s *server) distribution(ctx context.Context, today time.Time) ([]string, error) {
+	from := today.AddDate(0, 0, -27)
+	buckets, err := s.Store.ZoneTotals(ctx, store.ListFilter{From: from, To: today.AddDate(0, 0, 1)}, store.ZoneHR, store.ByYear)
+	if err != nil {
+		return nil, err
+	}
+	hours := map[int]float64{}
+	for _, b := range buckets {
+		hours[b.Zone] += b.Seconds / 3600
+	}
+	loads, err := s.Store.DailyLoad(ctx, from, today.AddDate(0, 0, 1))
+	if err != nil || len(loads) == 0 {
+		return nil, err
+	}
+	byDay := map[time.Time]float64{}
+	for _, l := range loads {
+		byDay[l.Date] = l.Garmin
+	}
+	last7 := make([]float64, 7)
+	for i := range 7 {
+		last7[i] = byDay[today.AddDate(0, 0, i-6)]
+	}
+	return insight.AssessDistribution(hours, last7, len(loads), 4).Statements, nil
 }

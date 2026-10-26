@@ -134,6 +134,23 @@ FIT-Dateien und Gesundheitsdaten werden in einem Durchgang übernommen; ein erne
 nichts. VO2max, Training Readiness und Trainingsstatus liefert nur der Export. Ältere Werte tragen ein
 „Stand“-Datum.
 
+## Einordnung
+
+Die Karte **Heute** auf der Übersicht fasst zusammen, wie erholt du bist und was sich heute anbietet:
+
+- **Bereitschaft (0–100):** HRV (gegen Garmins Basis), Ruhepuls (3-Tage-Schnitt), Schlaf (Dauer bzw.
+  Schlafwert, der schlechtere zählt), Body Battery bzw. Stress des Vortags und das Verhältnis akuter zu
+  chronischer Belastung. Jeder Wert wird gegen dein **persönliches Normal** der letzten 60 Tage
+  (Median ± Streuung) bewertet. Ab 66 *bereit*, unter 46 *eingeschränkt*. Gegen Garmins Training
+  Readiness kalibriert (Rangkorrelation 0,77 über 4 Jahre).
+- **Empfehlung:** Ruhetag, locker, moderat oder intensiv – aus Bereitschaft, Form und Belastungsverhältnis.
+  Liegt der Ruhepuls an 3 Tagen in Folge 5 bpm über deinem Normal, erscheint ein Hinweis.
+- Fehlen die Werte von heute (Uhr nachts nicht getragen), gilt der Stand von gestern.
+
+Die Gesundheitskarten zeigen die Lage zum Normalbereich, unter **Training → Zonen** steht eine
+Einordnung der Trainingsverteilung der letzten 4 Wochen. Unter **Mehr → Einordnung** lassen sich
+Gewichte, Grenzen und Regeln anpassen. Die Hinweise sind keine medizinische Bewertung.
+
 ## Belastung und Zonen
 
 Unter **Training → Belastung** (alle Sportarten zusammen):

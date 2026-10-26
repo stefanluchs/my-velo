@@ -8,6 +8,7 @@ tags: [einordnung, bereitschaft, readiness, kalibrierung, schwellen]
 sources:
   - "doc:docs/konzept-einordnung.md"
   - "session:38cbacee"
+  - "code:internal/insight/readiness.go"
 created: 2026-10-26
 updated: 2026-10-26
 supersedes: []
@@ -26,13 +27,18 @@ reversibility: hoch
 
 # Bereitschaft – Modell an der eigenen Historie kalibriert
 
-**Claim:** Die Tages-Bereitschaft wird stufenlos aus z-Werten gegen 60-Tage-Median/MAD (HRV 0,30, Ruhepuls 0,25, Schlaf 0,25, Body Battery/Stress 0,20) plus einem Belastungsfaktor aus dem Verhältnis akut/chronisch (0,30) berechnet, mit Grenzen 66/46 – so erreicht sie gegen Garmins Training Readiness eine Rangkorrelation von 0,75 bei ähnlicher Klassenverteilung.
+**Claim:** Die Tages-Bereitschaft wird stufenlos aus z-Werten gegen 60-Tage-Median/MAD (HRV 0,30, Ruhepuls 0,25, Schlaf 0,25, Body Battery/Stress 0,20) plus einem Belastungsfaktor aus dem Verhältnis akut/chronisch (0,30) berechnet, mit Grenzen 66/46 – so erreicht sie gegen Garmins Training Readiness eine Rangkorrelation von 0,77 bei ähnlicher Klassenverteilung.
 
 ## Kontext
 Kalibriert am 26.10.2026 über 1.488 Tage mit beiden Werten (Details und Varianten:
 `docs/konzept-einordnung.md` §12). Punkte je Faktor `70 + 30 × z`, auf 0–100 begrenzt. Warnzeichen
 (Ruhepuls ≥ +5 bpm an 3 Tagen) kamen 7-mal in 4,5 Jahren vor. Alle Werte sind Standardwerte und in der
 Oberfläche anpassbar (§13).
+
+In der Umsetzung (v0.12.0) kommen Body Battery/Stress vom **Vortag**, weil Tageswerte morgens
+unvollständig sind ([[tageswerte-erst-am-folgetag-vollstaendig]]); HRV nutzt Garmins Basis, wenn
+vorhanden. Das hob die Übereinstimmung von 0,75 auf **0,77** (68 % gleiche Klasse). Fehlen die
+Nachtwerte von heute, zeigt die Karte den Stand von gestern.
 
 ## Auswirkung auf die Implementierung
 - Die Belastung ist **Teil** der Bereitschaft; die Empfehlung (C) nutzt zusätzlich Form und Verhältnis.
@@ -44,3 +50,4 @@ Oberfläche anpassbar (§13).
 - [[trainingsbelastung-modell-und-garmin-massstab]]
 - [[gesundheitsdaten-im-export]]
 - [[training-und-gesundheit-quellen-und-schwellen]]
+- [[tageswerte-erst-am-folgetag-vollstaendig]]

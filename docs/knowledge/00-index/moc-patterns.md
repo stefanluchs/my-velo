@@ -19,3 +19,4 @@ Zurück zum [[index]].
 - [[fit-ungueltige-werte-als-null]] — Sentinels/`NaN` → „nicht aufgezeichnet“, nicht 0
 - [[synthetische-fit-fixtures-und-opt-in-tests]] — `internal/fittest`, `MYVELO_*`-Variablen
 - [[job-runner-mit-done-channel]] — ein Job, `done`-Channel statt `WaitGroup`, `-race`
+- [[tageswerte-erst-am-folgetag-vollstaendig]] — Schritte/Stress/Body Battery von gestern, Nachtwerte von heute

@@ -117,6 +117,11 @@ func (s *Store) HealthDays(ctx context.Context, from, to time.Time, cols []strin
 // LatestHealth returns, per column, the most recent non-NULL value and its
 // date.
 func (s *Store) LatestHealth(ctx context.Context, cols []string) (map[string]HealthValue, error) {
+	return s.LatestHealthBefore(ctx, cols, time.Date(9999, 1, 1, 0, 0, 0, 0, time.UTC))
+}
+
+// LatestHealthBefore is LatestHealth restricted to dates before a local date.
+func (s *Store) LatestHealthBefore(ctx context.Context, cols []string, before time.Time) (map[string]HealthValue, error) {
 	out := map[string]HealthValue{}
 	for _, c := range cols {
 		if !healthColumn[c] {
@@ -124,8 +129,8 @@ func (s *Store) LatestHealth(ctx context.Context, cols []string) (map[string]Hea
 		}
 		var date string
 		var v any
-		err := s.db.QueryRowContext(ctx, `SELECT date, `+c+` FROM daily_health WHERE `+c+` IS NOT NULL
-			ORDER BY date DESC LIMIT 1`).Scan(&date, &v)
+		err := s.db.QueryRowContext(ctx, `SELECT date, `+c+` FROM daily_health WHERE `+c+` IS NOT NULL AND date < ?
+			ORDER BY date DESC LIMIT 1`, before.Format(time.DateOnly)).Scan(&date, &v)
 		if err == sql.ErrNoRows {
 			continue
 		}

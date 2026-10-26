@@ -8,6 +8,26 @@
 </section>
 {{else}}
 <h1 class="visually-hidden">Übersicht</h1>
+{{with .Today}}
+<section class="card today" aria-label="Heute">
+  {{with .Warning}}<p class="today-warning" role="alert"><strong>Warnzeichen:</strong> {{.}}</p>{{end}}
+  <div class="today-row">
+    {{if .HasReadiness}}
+    <div class="today-score {{.ClassID}}" title="Bereitschaft 0–100">
+      <strong>{{.Score}}</strong><span>{{.Class}}</span>
+    </div>
+    {{end}}
+    <div class="today-main">
+      <p class="today-label">Heute{{with .DayNote}} <span class="hint">· Bereitschaft {{.}}</span>{{end}}</p>
+      <p class="today-rec rec-{{.RecID}}">{{.Rec.Kind}}</p>
+      <p class="hint">{{range $i, $r := .Rec.Reasons}}{{if $i}} · {{end}}{{$r}}{{end}}</p>
+    </div>
+  </div>
+  {{if .Reasons}}<ul class="today-reasons">{{range .Reasons}}<li>{{.}}</li>{{end}}</ul>{{end}}
+  {{range .Rec.Hints}}<p class="today-hint">{{.}}</p>{{end}}
+  <p class="hint small"><a href="health">Gesundheit</a> · <a href="settings">Regeln anpassen</a> · keine medizinische Bewertung</p>
+</section>
+{{end}}
 <nav class="chips scroll-x" aria-label="Sportart">
   {{range .Categories}}<a class="chip {{if eq .ID $.Data.Category.ID}}active{{end}}" href="./?cat={{.ID}}{{if ne $.Data.Period "week"}}&amp;p={{$.Data.Period}}{{end}}">{{.Icon}} {{.Label}}</a>{{end}}
 </nav>

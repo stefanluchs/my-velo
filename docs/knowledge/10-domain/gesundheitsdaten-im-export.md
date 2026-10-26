@@ -38,6 +38,7 @@ superseded_by: null
 
 ## Verbindungen
 - [[moc-domain]]
+- [[tageswerte-erst-am-folgetag-vollstaendig]]
 - [[trainings-und-gesundheitsdaten-quellen]]
 - [[garmin-bulk-export-aufbau]]
 - [[bereitschaft-modell-kalibriert]]

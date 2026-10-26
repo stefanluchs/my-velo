@@ -33,7 +33,7 @@ func TestHealthPage(t *testing.T) {
 	}
 	body = env.do(ingressGET("/health")).Body.String()
 	for _, want := range []string{
-		"<strong>51 bpm</strong>", "<strong>62 ms</strong>", "im Normalbereich · Basis 55–70 ms", "<strong>7:30</strong>",
+		"<strong>51 bpm</strong>", "<strong>62 ms</strong>", "im Normalbereich", "im Basisbereich (55–70 ms)", "<strong>7:30</strong>",
 		"Schlafwert 84", "<strong>12.345</strong>", "<strong>78,5 kg</strong>", "Stand 30.04.2026", "<strong>Produktiv</strong>",
 		"Stand 01.04.2026", `from "./static/health.js?v=`, `"id":"rhr"`, `"sleep_h":[null,null,7.5]`, `"intensity_min":[null,null,50]`,
 	} {

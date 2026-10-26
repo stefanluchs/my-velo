@@ -141,7 +141,7 @@ func NewHandler(d Deps) http.Handler {
 	if s.assetVersion == "" || s.assetVersion == "dev" {
 		s.assetVersion = strconv.FormatInt(d.Info.StartedAt.Unix(), 36)
 	}
-	for _, page := range []string{"index.html", "import.html", "activities.html", "activity.html", "heatmap.html", "stats.html", "garmin.html", "more.html", "records.html", "load.html", "zones.html", "health.html"} {
+	for _, page := range []string{"index.html", "import.html", "activities.html", "activity.html", "heatmap.html", "stats.html", "garmin.html", "more.html", "records.html", "load.html", "zones.html", "health.html", "settings.html"} {
 		s.pages[page] = template.Must(template.New(page).Funcs(funcs).ParseFS(templateFS,
 			"templates/layout.html", "templates/import_status.html", "templates/activity_tile.html", "templates/period.html", "templates/training_nav.html", "templates/"+page))
 	}
@@ -166,6 +166,9 @@ func NewHandler(d Deps) http.Handler {
 	mux.HandleFunc("GET /records", s.records)
 	mux.HandleFunc("GET /load", s.loadPage)
 	mux.HandleFunc("GET /health", s.healthPage)
+	mux.HandleFunc("GET /settings", s.settingsPage)
+	mux.Handle("POST /settings/insight", requireHTMX(http.HandlerFunc(s.saveSettings)))
+	mux.Handle("POST /settings/insight/reset", requireHTMX(http.HandlerFunc(s.resetSettings)))
 	mux.HandleFunc("GET /zones", s.zonesPage)
 	mux.Handle("POST /zones/override", requireHTMX(http.HandlerFunc(s.addOverride)))
 	mux.Handle("POST /zones/override/delete", requireHTMX(http.HandlerFunc(s.deleteOverride)))

@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/stefanluchs/my-velo/internal/insight"
 	"github.com/stefanluchs/my-velo/internal/store"
 )
 
@@ -58,6 +59,8 @@ var healthCharts = []healthChart{
 
 type healthCard struct {
 	Label, Value, Detail, Date string
+	Metric                     string
+	Note                       *normalNote
 }
 
 type healthData struct {
@@ -129,7 +132,29 @@ func (s *server) healthPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	today := localDate(s.now())
+	// Daily totals of today are incomplete: show the last complete day.
+	complete, err := s.Store.LatestHealthBefore(ctx, store.HealthColumns, today)
+	if err != nil {
+		s.serverError(w, "latest health", err)
+		return
+	}
+	for col := range insight.DailyTotals {
+		if v, ok := complete[col]; ok {
+			latest[col] = v
+		}
+	}
 	d.Cards = healthCards(latest, today)
+	in, err := s.loadInsightInput(ctx, today)
+	if err != nil {
+		s.serverError(w, "insight input", err)
+		return
+	}
+	notes := normalNotes(in.series, latest, in.cfg)
+	for i := range d.Cards {
+		if n, ok := notes[d.Cards[i].Metric]; ok {
+			d.Cards[i].Note = &n
+		}
+	}
 
 	from := time.Unix(0, 0).UTC()
 	if rng.Days > 0 {
@@ -194,6 +219,9 @@ func healthCards(latest map[string]store.HealthValue, today time.Time) []healthC
 				newest = v.Date
 			}
 		}
+		if !newest.IsZero() && newest.Equal(today.AddDate(0, 0, -1)) && insight.DailyTotals[keys[0]] {
+			return "gestern"
+		}
 		if newest.IsZero() || today.Sub(newest) <= 48*time.Hour {
 			return ""
 		}
@@ -215,42 +243,36 @@ func healthCards(latest map[string]store.HealthValue, today time.Time) []healthC
 		return ""
 	}
 	if v, ok := f("resting_hr"); ok {
-		cards = append(cards, healthCard{"Ruhepuls", fmt.Sprintf("%.0f bpm", v), "", date("resting_hr")})
+		cards = append(cards, healthCard{Label: "Ruhepuls", Value: fmt.Sprintf("%.0f bpm", v), Date: date("resting_hr"), Metric: "resting_hr"})
 	}
 	if v, ok := f("hrv_night_avg"); ok {
-		c := healthCard{Label: "HRV (Nacht)", Value: fmt.Sprintf("%.0f ms", v), Date: date("hrv_night_avg")}
-		lo, ok1 := f("hrv_baseline_low")
-		hi, ok2 := f("hrv_baseline_high")
-		if ok1 && ok2 {
-			c.Detail = fmt.Sprintf("Basis %.0f–%.0f ms", lo, hi)
-		}
-		if st := hrvStatus[str("hrv_status")]; st != "" {
-			c.Detail = joinDetail(st, c.Detail)
-		}
+		c := healthCard{Label: "HRV (Nacht)", Value: fmt.Sprintf("%.0f ms", v), Date: date("hrv_night_avg"), Metric: "hrv_night_avg"}
+		// The baseline range is part of the normal-range note.
+		c.Detail = hrvStatus[str("hrv_status")]
 		cards = append(cards, c)
 	}
 	if v, ok := f("sleep_s"); ok {
-		c := healthCard{Label: "Schlaf", Value: hours(v), Date: date("sleep_s")}
+		c := healthCard{Label: "Schlaf", Value: hours(v), Date: date("sleep_s"), Metric: "sleep_s"}
 		if sc, ok := f("sleep_score"); ok {
 			c.Detail = fmt.Sprintf("Schlafwert %.0f", sc)
 		}
 		cards = append(cards, c)
 	}
 	if hi, ok := f("body_battery_high"); ok {
-		c := healthCard{Label: "Body Battery", Value: fmt.Sprintf("%.0f", hi), Detail: "Höchstwert", Date: date("body_battery_high")}
+		c := healthCard{Label: "Body Battery", Value: fmt.Sprintf("%.0f", hi), Detail: "Höchstwert", Date: date("body_battery_high"), Metric: "body_battery_high"}
 		if lo, ok := f("body_battery_low"); ok {
 			c.Detail = fmt.Sprintf("Höchstwert · Tiefstwert %.0f", lo)
 		}
 		cards = append(cards, c)
 	}
 	if v, ok := f("stress_avg"); ok {
-		cards = append(cards, healthCard{"Stress", fmt.Sprintf("%.0f", v), "Tagesdurchschnitt (0–100)", date("stress_avg")})
+		cards = append(cards, healthCard{Label: "Stress", Value: fmt.Sprintf("%.0f", v), Detail: "Tagesdurchschnitt (0–100)", Date: date("stress_avg"), Metric: "stress_avg"})
 	}
 	if v, ok := f("steps"); ok {
-		cards = append(cards, healthCard{"Schritte", thousands(int(v)), "", date("steps")})
+		cards = append(cards, healthCard{Label: "Schritte", Value: thousands(int(v)), Detail: "", Date: date("steps")})
 	}
 	if v, ok := f("weight_kg"); ok {
-		cards = append(cards, healthCard{"Gewicht", germanFloat(v, 1) + " kg", "", date("weight_kg")})
+		cards = append(cards, healthCard{Label: "Gewicht", Value: germanFloat(v, 1) + " kg", Detail: "", Date: date("weight_kg")})
 	}
 	bike, ok1 := f("vo2max_cycling")
 	run, ok2 := f("vo2max_running")
@@ -267,7 +289,7 @@ func healthCards(latest map[string]store.HealthValue, today time.Time) []healthC
 		cards = append(cards, c)
 	}
 	if v, ok := f("fitness_age"); ok {
-		cards = append(cards, healthCard{"Fitnessalter", germanFloat(v, 1) + " J.", "", date("fitness_age")})
+		cards = append(cards, healthCard{Label: "Fitnessalter", Value: germanFloat(v, 1) + " J.", Detail: "", Date: date("fitness_age")})
 	}
 	if v, ok := f("spo2_avg"); ok {
 		c := healthCard{Label: "SpO2", Value: germanFloat(v, 0) + " %", Date: date("spo2_avg")}
@@ -277,21 +299,14 @@ func healthCards(latest map[string]store.HealthValue, today time.Time) []healthC
 		cards = append(cards, c)
 	}
 	if v, ok := f("readiness_score"); ok {
-		cards = append(cards, healthCard{"Training Readiness", fmt.Sprintf("%.0f", v), readinessLevel[str("readiness_level")], date("readiness_score")})
+		cards = append(cards, healthCard{Label: "Readiness (Garmin)", Value: fmt.Sprintf("%.0f", v), Detail: readinessLevel[str("readiness_level")], Date: date("readiness_score")})
 	}
 	if st := str("training_status"); st != "" {
 		label := trainingStatus[st]
 		if label == "" {
 			label = st
 		}
-		cards = append(cards, healthCard{"Trainingsstatus", label, "laut Garmin", date("training_status")})
+		cards = append(cards, healthCard{Label: "Trainingsstatus", Value: label, Detail: "laut Garmin", Date: date("training_status")})
 	}
 	return cards
-}
-
-func joinDetail(a, b string) string {
-	if b == "" {
-		return a
-	}
-	return a + " · " + b
 }

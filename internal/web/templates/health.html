@@ -21,6 +21,7 @@
     <h2>{{.Label}}</h2>
     <p class="big"><strong>{{.Value}}</strong></p>
     {{with .Detail}}<p class="hint">{{.}}</p>{{end}}
+    {{with .Note}}<p class="normal-note {{.Class}}">{{.Text}}</p>{{end}}
     {{with .Date}}<p class="hint stale">{{.}}</p>{{end}}
   </section>
   {{end}}
