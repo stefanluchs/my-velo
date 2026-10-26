@@ -53,3 +53,4 @@ Browser → HA-Ingress → Add-on (Port 8099). Kein direkter Zugriff von außen.
 - [[post-mit-requirehtmx-als-csrf-schutz]]
 - [[keine-lokalen-add-on-builds]]
 - [[svg-fragmentverweise-und-base-href]]
+- [[ha-panel-safe-area-und-titel]]

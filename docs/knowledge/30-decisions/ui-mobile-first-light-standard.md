@@ -9,7 +9,7 @@ sources:
   - "doc:docs/ui-konzept.md"
   - "session:38cbacee"
 created: 2026-10-23
-updated: 2026-10-23
+updated: 2026-10-26
 supersedes: []
 superseded_by: null
 decision_date: 2026-10-23
@@ -42,7 +42,7 @@ war kontrastarm und die Chart-Achsen dort unsichtbar. Tokens und Kontrastwerte s
   gespeicherten Polyline; ein Cache wurde bewusst nicht eingeführt (billig, keine Migration).
 - Jede Seite muss `scrollWidth <= clientWidth` erfüllen; Ausnahmen nur innerhalb von Karten
   (`.table-wrap`) oder der Chip-Leiste `.scroll-x`.
-- Abweichungen vom Entwurf: `docs/ui-konzept.md` §10.
+- Abweichungen vom Entwurf: `docs/ui-konzept.md` §10. Seit `v0.7.1` keine Kopfzeile auf Handys.
 
 ## Verbindungen
 - [[moc-decisions]]
@@ -50,3 +50,4 @@ war kontrastarm und die Chart-Achsen dort unsichtbar. Tokens und Kontrastwerte s
 - [[uplot-farben-aus-theme-tokens]]
 - [[svg-fragmentverweise-und-base-href]]
 - [[aktivitaetsfeed-nachladen-per-htmx]]
+- [[ha-panel-safe-area-und-titel]]

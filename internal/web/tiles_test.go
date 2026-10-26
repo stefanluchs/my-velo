@@ -4,6 +4,7 @@ package web
 
 import (
 	"net/http"
+	"net/http/httptest"
 	"reflect"
 	"strings"
 	"testing"
@@ -93,7 +94,7 @@ func TestMorePageAndThemeAssets(t *testing.T) {
 	if strings.Contains(body, `href="garmin"`) {
 		t.Error("garmin link without Garmin service")
 	}
-	for _, want := range []string{`<html lang="de" data-theme="light">`, "--cat-bike:#d9480f;", "[data-theme=dark]{--cat-bike:#ff7a33;", ".cat-bike{--cat:var(--cat-bike)}"} {
+	for _, want := range []string{"--cat-bike:#d9480f;", "[data-theme=dark]{--cat-bike:#ff7a33;", ".cat-bike{--cat:var(--cat-bike)}"} {
 		if !strings.Contains(body, want) {
 			t.Errorf("layout missing %q", want)
 		}
@@ -103,5 +104,13 @@ func TestMorePageAndThemeAssets(t *testing.T) {
 	}
 	if w := env.do(ingressGET("/import")); !strings.Contains(w.Body.String(), `href="more" aria-current="page"`) {
 		t.Error("import belongs to the Mehr tab")
+	}
+	// Under ingress Home Assistant shows the title and pads the safe area itself.
+	if !strings.Contains(body, `data-theme="light" data-embedded>`) || strings.Contains(body, `class="brand"`) {
+		t.Error("ingress pages must be marked embedded and omit the brand")
+	}
+	local := env.do(httptest.NewRequest(http.MethodGet, "/more", nil)).Body.String()
+	if strings.Contains(local, "data-embedded") || !strings.Contains(local, `class="brand"`) {
+		t.Error("direct access keeps the brand and the safe-area padding")
 	}
 }

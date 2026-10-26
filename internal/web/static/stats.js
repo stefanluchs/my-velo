@@ -4,7 +4,7 @@
 // distance per year compared with earlier years and the goal.
 
 import uPlot from "./vendor/uplot-1.6.32/uPlot.esm.js";
-import { METRICS, barSeries, cumulativeSeries, monthTicks, yearColor, labelStep } from "./stats-data.js";
+import { METRICS, barSeries, cumulativeSeries, monthTicks, yearColor, labelStep, referenceIndex } from "./stats-data.js";
 import { axisStyle, withAlpha } from "./theme-data.js";
 import { chartColors, onThemeChange } from "./theme.js";
 
@@ -21,7 +21,7 @@ export function showStats() {
     cumulative?.destroy();
     const colors = chartColors();
     bars = drawBars(document.getElementById("bars"), document.getElementById("bars-readout"), data, metric, colors);
-    cumulative = drawCumulative(document.getElementById("cumulative"), data, colors);
+    cumulative = drawCumulative(document.getElementById("cumulative"), document.getElementById("cumulative-legend"), data, colors);
   };
   draw();
   onThemeChange(draw);
@@ -97,15 +97,50 @@ function drawBars(container, readout, data, metric, colors) {
   };
 }
 
-function drawCumulative(container, data, colors) {
+function drawCumulative(container, legendEl, data, colors) {
   const { x, series } = cumulativeSeries(data);
   const ticks = monthTicks();
   const width = () => container.clientWidth;
   const height = () => (compact(container) ? 240 : 280);
+  const strokes = series.map((s, i) => (s.goal ? colors.muted : colors.years[i] || yearColor(i)));
+
+  // Own legend instead of uPlot's: uPlot shows values only while hovering,
+  // which never happens on touch screens. Without cursor it shows the
+  // reference day (today or year end) for all years.
+  const ref = referenceIndex(series);
+  const day = document.createElement("p");
+  day.className = "legend-day";
+  const list = document.createElement("ul");
+  list.className = "legend";
+  const outputs = series.map((s, i) => {
+    const li = document.createElement("li");
+    const sw = document.createElement("span");
+    sw.className = s.goal ? "swatch goal" : "swatch";
+    sw.style.setProperty("--swatch", strokes[i]);
+    const label = document.createElement("span");
+    label.textContent = s.goal ? "Ziel" : s.label;
+    const out = document.createElement("output");
+    li.append(sw, label, out);
+    list.append(li);
+    return out;
+  });
+  legendEl.replaceChildren(day, list);
+  const showDay = (i) => {
+    if (i == null || i < 0) i = ref;
+    if (i < 0) {
+      day.textContent = "";
+      outputs.forEach((o) => (o.textContent = "–"));
+      return;
+    }
+    day.textContent = `Stand ${dayLabel(x[i])}`;
+    series.forEach((s, j) => (outputs[j].textContent = s.values[i] == null ? "–" : `${fmt(s.values[i])} km`));
+  };
+  showDay(ref);
+
   const plot = new uPlot({
     width: width(),
     height: height(),
-    legend: { live: true },
+    legend: { show: false },
     cursor: { drag: { x: false, y: false } },
     scales: { x: { time: false, range: [1, 366] }, y: { range: (u, min, max) => [0, Math.max(10, max * 1.05)] } },
     axes: [
@@ -117,16 +152,15 @@ function drawCumulative(container, data, colors) {
       axisStyle(colors, { size: 52, values: (u, t) => t.map((v) => fmt(v)) }),
     ],
     series: [
-      { label: "Tag", value: (u, d) => (d == null ? "–" : dayLabel(d)) },
+      {},
       ...series.map((s, i) => ({
-        label: s.label,
-        stroke: s.goal ? colors.muted : colors.years[i] || yearColor(i),
+        stroke: strokes[i],
         width: s.goal ? 1.5 : i === 0 ? 2.5 : 1.5,
         dash: s.goal ? [6, 4] : undefined,
         points: { show: false },
-        value: (u, v) => `${fmt(v)} km`,
       })),
     ],
+    hooks: { setCursor: [(u) => showDay(u.cursor.idx)] },
   }, [x, ...series.map((s) => s.values)], container);
   const resize = new ResizeObserver(() => plot.setSize({ width: width(), height: height() }));
   resize.observe(container);
@@ -134,6 +168,7 @@ function drawCumulative(container, data, colors) {
     destroy() {
       resize.disconnect();
       plot.destroy();
+      legendEl.replaceChildren();
     },
   };
 }

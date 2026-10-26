@@ -11,7 +11,7 @@ sources:
   - "doc:docs/ui-konzept.md"
   - "session:38cbacee"
 created: 2026-10-23
-updated: 2026-10-23
+updated: 2026-10-26
 supersedes: []
 superseded_by: null
 ---
@@ -35,6 +35,7 @@ werden beim Theme-Wechsel nicht neu eingefärbt.
 - Farben über `chartColors()` aus `--chart-*` lesen und mit `axisStyle(colors, …)` an jede Achse geben.
 - Bei Theme-Wechsel (Ereignis `myvelo:theme` oder System-Wechsel bei „System“) Charts zerstören
   und neu zeichnen; `destroy()` meldet uPlot-Sync selbst ab.
+- Legende nicht von uPlot (`legend.show: false`): uPlot zeigt Werte nur beim Überfahren, auf Touch-Geräten also nie; eigene Legende mit Standard-Stichtag (`referenceIndex`) und `setCursor`-Hook.
 - Die Optionsbildung DOM-frei halten, damit sie per `node --test` prüfbar bleibt ([[dom-freie-browserlogik-mit-node-test]]).
 
 ## Verbindungen

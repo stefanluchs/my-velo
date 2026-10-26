@@ -60,3 +60,17 @@ export function yearColor(index) {
   const palette = ["#e8590c", "#1c7ed6", "#2b8a3e", "#7048e8", "#868e96"];
   return palette[index % palette.length];
 }
+
+/**
+ * Index of the day the cumulative legend shows without cursor: the last
+ * day with data of the first (selected) series, i.e. today in the current
+ * year and 31 Dec in past years. Comparing all years on that day answers
+ * "where was I at this point in earlier years?". -1 without data.
+ */
+export function referenceIndex(series) {
+  const values = series[0]?.values ?? [];
+  for (let i = values.length - 1; i >= 0; i--) {
+    if (values[i] != null) return i;
+  }
+  return -1;
+}

@@ -10,6 +10,7 @@ Zurück zum [[index]]. Autoritativ: `docs/architecture.md`.
 ## Home Assistant
 - [[ingress-basispfad-und-relative-urls]] — `X-Ingress-Path`, nur relative URLs, nur `172.30.32.2`
 - [[ha-benachrichtigung-ueber-supervisor-api]] — `homeassistant_api: true`, `SUPERVISOR_TOKEN`
+- [[ha-panel-safe-area-und-titel]] — HA zeigt Titel und polstert die Safe-Area; Panel unter Ingress ohne beides
 
 ## Build, Release, Betrieb
 - [[add-on-updates-ueber-branch-stable]] — HA abonniert `#stable`, Workflow bewegt den Branch

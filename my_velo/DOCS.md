@@ -4,7 +4,7 @@
 my Velo speichert und zeigt deine Sportaktivitäten lokal in Home Assistant. Quelle sind die
 Original-FIT-Dateien deiner Geräte.
 
-> **Stand 0.7.0:** Import und automatischer Abgleich über die offizielle Garmin Connect Personal
+> **Stand 0.7.1:** Import und automatischer Abgleich über die offizielle Garmin Connect Personal
 > API, Dashboard, Aktivitäten als Kacheln, Detailansicht mit Karte und Diagrammen, Statistik mit
 > Jahreszielen und Eddington-Zahl, persönliche Heatmap. Oberfläche für Handy und Desktop, hell
 > oder dunkel.
@@ -99,7 +99,8 @@ Was dabei passiert:
   „Vorjahr“ vergleicht mit denselben Kalendertagen des Vorjahres. Dazu Jahresziel, die Kilometer
   der letzten 12 Wochen und die neuesten Aktivitäten.
 - Unter **Statistik** gibt es Balken pro Monat oder Kalenderwoche (ISO, Woche beginnt Montag), den
-  kumulierten Jahresvergleich und die Übersicht aller Jahre.
+  kumulierten Jahresvergleich und die Übersicht aller Jahre. Der Jahresvergleich nennt unter dem
+  Diagramm den Stand aller Jahre am heutigen Tag; Antippen eines Tages zeigt dessen Werte.
 - **Eddington-Zahl:** größte Zahl E, für die du an E Tagen jeweils mindestens E km geschafft
   hast (alle Aktivitäten eines Tages zusammen, nur volle km). Angezeigt gesamt und für das gewählte
   Jahr, dazu wie viele Tage für E+1 noch fehlen.

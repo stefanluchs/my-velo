@@ -47,9 +47,16 @@
   --space-4: 16px;
   --space-5: 24px;
   --space-6: 32px;
-  --topbar-h: 56px;
+  --topbar-h: 0px;
   --nav-h: 64px;
   --safe-b: env(safe-area-inset-bottom, 0px);
+}
+
+/* Inside Home Assistant the panel already keeps clear of the home indicator
+   (hass-subpage pads by the safe-area inset), so adding it here would
+   leave an empty strip below the tab bar. */
+:root[data-embedded] {
+  --safe-b: 0px;
 }
 
 [data-theme="dark"] {
@@ -199,20 +206,14 @@ code {
 }
 
 /* ---------- App shell ---------- */
+/* Phones: no header bar – Home Assistant shows the panel title already and
+   navigation lives in the bottom tab bar. */
 .topbar {
-  position: sticky;
-  top: 0;
-  z-index: 30;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  height: var(--topbar-h);
-  padding: 0 var(--space-4);
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
+  display: contents;
 }
 
 .brand {
+  display: none;
   font-weight: 700;
   font-size: 1.15rem;
   white-space: nowrap;
@@ -276,12 +277,29 @@ footer {
 }
 
 @media (min-width: 64rem) {
+  :root {
+    --topbar-h: 56px;
+  }
+
   body {
     padding-bottom: 0;
   }
 
   .topbar {
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: var(--topbar-h);
     padding: 0 var(--space-5);
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .brand {
+    display: block;
   }
 
   .mainnav {
@@ -1099,6 +1117,52 @@ form.stack .row {
 /* uPlot renders its legend as HTML; align it with the theme. */
 .uplot {
   font-family: inherit;
+}
+
+.chart-legend {
+  margin-top: var(--space-2);
+}
+
+.legend-day {
+  margin: 0 0 var(--space-1);
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.legend {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(9.5rem, 11rem));
+  gap: var(--space-1) var(--space-4);
+  padding: 0;
+  margin: 0;
+  list-style: none;
+  font-size: 0.9rem;
+}
+
+.legend li {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.legend output {
+  margin-left: auto;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.swatch {
+  flex: none;
+  width: 14px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--swatch);
+}
+
+.swatch.goal {
+  background: repeating-linear-gradient(90deg, var(--swatch) 0 4px, transparent 4px 7px);
 }
 
 .u-legend {

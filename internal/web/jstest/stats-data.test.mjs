@@ -3,7 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
-import { barSeries, total, cumulativeSeries, monthTicks, labelStep } from "../static/stats-data.js";
+import { barSeries, total, cumulativeSeries, monthTicks, labelStep, referenceIndex } from "../static/stats-data.js";
 
 const data = {
   labels: ["Jan", "Feb"],
@@ -33,6 +33,13 @@ test("cumulativeSeries pads years to 366 days and adds a linear goal", () => {
   assert.equal(series[2].values[364], 365);
   assert.equal(series[2].values[365], null);
   assert.equal(cumulativeSeries({ ...data, goal: 0 }).series.length, 2);
+});
+
+test("referenceIndex is the last day with data of the selected year", () => {
+  const { series } = cumulativeSeries(data);
+  assert.equal(referenceIndex(series), 1);
+  assert.equal(referenceIndex([{ values: [null, null] }]), -1);
+  assert.equal(referenceIndex([]), -1);
 });
 
 test("monthTicks", () => {
