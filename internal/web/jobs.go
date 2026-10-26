@@ -27,6 +27,8 @@ type ImportJob struct {
 	Results    []importer.Result
 	Truncated  bool
 	Error      string
+	// Notes are additional results, e.g. imported health days.
+	Notes []string
 }
 
 // Jobs runs one import at a time in the background and keeps the state of
@@ -85,6 +87,15 @@ func (j *Jobs) Start(label string, fn func(ctx context.Context, report func(impo
 	return nil
 }
 
+// Note adds a line to the running (or latest) job.
+func (j *Jobs) Note(msg string) {
+	j.mu.Lock()
+	defer j.mu.Unlock()
+	if j.last != nil {
+		j.last.Notes = append(j.last.Notes, msg)
+	}
+}
+
 // Last returns a snapshot of the latest job, or nil if none ran yet.
 func (j *Jobs) Last() *ImportJob {
 	j.mu.Lock()
@@ -94,6 +105,7 @@ func (j *Jobs) Last() *ImportJob {
 	}
 	cp := *j.last
 	cp.Results = append([]importer.Result(nil), j.last.Results...)
+	cp.Notes = append([]string(nil), j.last.Notes...)
 	return &cp
 }
 

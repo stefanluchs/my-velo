@@ -4,7 +4,7 @@
 my Velo speichert und zeigt deine Sportaktivitäten lokal in Home Assistant. Quelle sind die
 Original-FIT-Dateien deiner Geräte.
 
-> **Stand 0.9.0:** Import und automatischer Abgleich über die offizielle Garmin Connect Personal
+> **Stand 0.10.0:** Import und automatischer Abgleich über die offizielle Garmin Connect Personal
 > API, Dashboard, Aktivitäten als Kacheln, Detailansicht mit Karte und Diagrammen, Statistik mit
 > Jahreszielen und Eddington-Zahl, persönliche Heatmap. Oberfläche für Handy und Desktop, hell
 > oder dunkel.
@@ -82,8 +82,8 @@ Was dabei passiert:
 
 ## Bedienung und Darstellung
 
-- **Navigation:** auf dem Handy unten (Übersicht, Aktivitäten, Training, Heatmap, Mehr), am
-  Desktop oben. **Import**, **Garmin** und **Darstellung** liegen unter **Mehr**.
+- **Navigation:** auf dem Handy unten (Übersicht, Aktivitäten, Training, Gesundheit, Mehr), am
+  Desktop oben. **Heatmap**, **Import**, **Garmin** und **Darstellung** liegen unter **Mehr**.
 - **Hell/Dunkel:** Standard ist hell. Unter **Mehr → Darstellung** lässt sich Dunkel oder
   „System“ (folgt der Geräteeinstellung) wählen; die Wahl gilt pro Browser.
 - **Aktivitäten** erscheinen als Kacheln mit Streckenskizze, gruppiert nach Monat. Beim
@@ -119,6 +119,19 @@ bergab geht, und zählt ab 30 Hm. **E-Bike-Fahrten** zählen nicht zu den Bestle
 
 Nach dem Update auf 0.8.0 berechnet my Velo alle Aktivitäten einmal aus den gespeicherten
 Originaldateien neu; der Fortschritt steht unter **Mehr → Import**.
+
+## Gesundheit
+
+Der Tab **Gesundheit** zeigt die letzten Werte und Verläufe (30 Tage bis gesamt): Ruhepuls, HRV
+(Nacht-Durchschnitt mit Basisbereich), Schlaf und Schlafwert, Body Battery, Stress, Schritte,
+Intensitätsminuten (intensive Minuten zählen doppelt), Gewicht, VO2max, Fitnessalter, SpO2 und
+Atemfrequenz, dazu Garmins Training Readiness und Trainingsstatus.
+
+**Quelle ist der Garmin-Datenexport:** Die Export-ZIP in den Import-Ordner legen und unter
+**Mehr → Import → Ordner einlesen** importieren – FIT-Dateien und Gesundheitsdaten werden in einem
+Durchgang übernommen; ein erneuter Import ändert nichts. Ältere Werte tragen ein „Stand“-Datum.
+Training Readiness und Trainingsstatus gibt es nur im Export. Der automatische tägliche Abgleich der
+Gesundheitswerte über die Garmin-API ist in Vorbereitung.
 
 ## Belastung und Zonen
 

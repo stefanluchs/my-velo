@@ -49,7 +49,7 @@ func TestMigrationsAreIdempotent(t *testing.T) {
 			t.Fatal(err)
 		}
 		v, err := s.SchemaVersion(ctx)
-		if err != nil || v != 4 {
+		if err != nil || v != 5 {
 			t.Fatalf("schema version %d, err %v", v, err)
 		}
 		s.Close()

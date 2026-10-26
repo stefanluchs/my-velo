@@ -22,3 +22,4 @@ Zurück zum [[index]].
 - [[bestleistungen-regeln]] — Gesamtzeit interpoliert, 1-s-Leistung, 10 m Anstiegs-Toleranz, ohne E-Bikes
 - [[zonen-und-schwellen-aus-fit]] — `time_in_zone` je Aktivität, Schwellen-Historie ohne API
 - [[trainingsbelastung-modell-und-garmin-massstab]] — CTL/ATL/TSB; Garmins akute Last ≈ ATL × 7
+- [[gesundheitsdaten-im-export]] — Export-JSON je Typ, negative Werte = keine Daten, Gewicht in g

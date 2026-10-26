@@ -11,6 +11,7 @@ Punkte.
 | [S2 – FIT-Parsing](s2-fit-parsing.md) | Liefert `muktihari/fit` alle Daten und einen stabilen Schlüssel für idempotente Importe? | ✅ abgeschlossen (eigener Export: 808 Aktivitäten, keine Duplikate) |
 | [S3 – Ingress-Add-on](s3-ingress-addon.md) | Läuft ein Go-Server als Add-on korrekt hinter dem Home-Assistant-Ingress? | ✅ abgeschlossen, Abnahme auf dem Pi bestanden |
 | [S4 – Personal API](s4-personal-api.md) | Ersetzt die offizielle Garmin Connect Personal API den inoffiziellen Fetcher? | ✅ bestätigt (gleiche IDs, gleiche FIT-Schlüssel) |
+| [S5 – Gesundheit über die API](s5-health-api.md) | Liefert die Personal API Gesundheitswerte fortlaufend und mit Historie? | 📝 vorbereitet, Test mit eigenem Schlüssel offen |
 
 ## Zwischenfazit Phase 0
 

@@ -47,3 +47,4 @@ Geprüft am 26.10.2026 am eigenen Bestand (nur Feldnamen und Zeiträume, keine W
 - [[training-und-gesundheit-quellen-und-schwellen]]
 - [[zonen-und-schwellen-aus-fit]]
 - [[trainingsbelastung-modell-und-garmin-massstab]]
+- [[gesundheitsdaten-im-export]]

@@ -21,6 +21,7 @@
       <li class="chip failed">Fehler: {{.Stats.Failed}}</li>
     </ul>
     {{if .Error}}<p class="error">Import abgebrochen: {{.Error}}</p>{{end}}
+    {{range .Notes}}<p>{{.}}</p>{{end}}
     {{if .Results}}
     <details {{if .Stats.Failed}}open{{end}}>
       <summary>Details</summary>

@@ -36,7 +36,8 @@ Navigation: Statistik wird „Training“ mit Unterseiten, eigener Tab „Gesund
 ## Auswirkung auf die Umsetzung
 - Zonenberechnung immer mit der Schwelle, die am Aktivitätsdatum galt.
 - Neuberechnung aus dem Rohdatei-Archiv (B0) zuerst bauen; alles Weitere hängt davon ab.
-- Details und Bausteine B0–B6: `docs/plan-training-gesundheit.md`.
+- Details und Bausteine B0–B6: `docs/plan-training-gesundheit.md`. Stand 26.10.2026: v0.8.0–v0.10.0
+  umgesetzt; der tägliche API-Abgleich der Gesundheitswerte wartet auf Spike S5.
 
 ## Verbindungen
 - [[moc-decisions]]

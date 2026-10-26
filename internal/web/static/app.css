@@ -1821,3 +1821,65 @@ h2.sub {
 .zone-bars .zone-5 { --zone-color: var(--zone-5); }
 .zone-bars .zone-6 { --zone-color: var(--zone-6); }
 .zone-bars .zone-7 { --zone-color: var(--zone-7); }
+
+/* ---------- Health ---------- */
+.health-cards {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+.health-cards > .card {
+  margin: 0;
+}
+
+@media (min-width: 48rem) {
+  .health-cards {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.health-cards .big strong {
+  font-size: 1.5rem;
+}
+
+.health-cards .stale {
+  font-style: italic;
+}
+
+.health-charts {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-3);
+  margin: var(--space-3) 0;
+}
+
+.health-charts > .card {
+  margin: 0;
+}
+
+@media (min-width: 64rem) {
+  .health-charts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.health-chart header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0 var(--space-2);
+}
+
+.health-chart h2 {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.health-chart output {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}

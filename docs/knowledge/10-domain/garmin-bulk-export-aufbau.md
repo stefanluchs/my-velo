@@ -53,3 +53,4 @@ Garmin-Connect-Aktivitäts-ID; das Feld heißt deshalb `FileNumber`.
 - [[fit-identitaetsschluessel]]
 - [[fit-file-id]]
 - [[trainings-und-gesundheitsdaten-quellen]]
+- [[gesundheitsdaten-im-export]]

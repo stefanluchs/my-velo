@@ -14,6 +14,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/stefanluchs/my-velo/internal/health"
 	"github.com/stefanluchs/my-velo/internal/importer"
 )
 
@@ -82,8 +83,18 @@ func (s *server) importFolder(w http.ResponseWriter, r *http.Request) {
 
 func (s *server) startImport(w http.ResponseWriter, label, root string, cleanup func()) {
 	err := s.Jobs.Start(label, func(ctx context.Context, report func(importer.Result)) error {
-		_, err := s.Importer.ImportPath(ctx, root, report)
-		return err
+		if _, err := s.Importer.ImportPath(ctx, root, report); err != nil {
+			return err
+		}
+		// A Garmin export also holds health data as JSON next to the FIT files.
+		hs, err := health.ImportPath(ctx, s.Store, root)
+		switch {
+		case err != nil:
+			s.Jobs.Note("Gesundheitsdaten konnten nicht gelesen werden: " + err.Error())
+		case hs.Days > 0:
+			s.Jobs.Note(fmt.Sprintf("Gesundheitsdaten: %d Tage aus %d Dateien übernommen.", hs.Days, hs.Files))
+		}
+		return nil
 	}, cleanup)
 	if errors.Is(err, ErrJobRunning) {
 		if cleanup != nil {
