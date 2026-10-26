@@ -57,3 +57,4 @@ Die Aktivitätsliste liefert `deviceId = 0`, anders als die inoffizielle API.
 - [[garmin-bulk-export-aufbau]]
 - [[job-runner-mit-done-channel]]
 - [[synthetische-fit-fixtures-und-opt-in-tests]]
+- [[trainings-und-gesundheitsdaten-quellen]]

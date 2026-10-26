@@ -14,7 +14,8 @@ Wissensspeicher [knowledge/](knowledge/00-index/index.md) – vor größeren Än
 | Phase 0 – Spikes | ✅ abgeschlossen am 23.10.2026 ([spikes/](spikes/README.md)) |
 | Phase 1 – MVP | 🟡 1.1–1.8 ✅, Sync seit `v0.6.0` über die Personal API (E7); 1.9 zurückgestellt (keine Doppelaufzeichnungen); offen: Abnahme des Syncs auf dem Pi |
 | Phase 2 – Analysen | 🟡 begonnen: Kategorien Indoor-Rad/Fitness und Eddington-Zahl ✅ (`v0.6.0`); als Nächstes Explorer-Tiles, Bestleistungen, HF-Zonen |
-| UI-Überarbeitung (mobile first, Light/Dark) | ✅ `v0.7.0` ([ui-konzept.md](ui-konzept.md), Umsetzung §10); danach Phase 2 |
+| UI-Überarbeitung (mobile first, Light/Dark) | ✅ `v0.7.0`, Feinschliff für die HA-App `v0.7.1` ([ui-konzept.md](ui-konzept.md)) |
+| Training und Gesundheit | 📝 abgestimmt ([plan-training-gesundheit.md](plan-training-gesundheit.md)): v0.8.0 Runden, Wetter, Bestleistungen → v0.9.0 Zonen, Belastung → v0.10.0 Gesundheit |
 
 Vorhanden im Repository:
 

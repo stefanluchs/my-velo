@@ -16,3 +16,6 @@ Zurück zum [[index]].
 ## Zeit und Analysen
 - [[lokale-kalendersemantik]] — Gruppierung nach `start_time + tz_offset_s`
 - [[eddington-zahl-pro-lokalem-tag]] — Summe pro lokalem Tag, nur ganze km
+
+## Training und Gesundheit
+- [[trainings-und-gesundheitsdaten-quellen]] — Last in FIT, Historie im Export-JSON, laufend über Personal API
