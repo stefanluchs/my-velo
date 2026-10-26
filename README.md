@@ -6,7 +6,7 @@ my Velo zeigt einzelne Aktivitäten mit Karte, die Historie mit Statistiken und 
 Heatmap, ohne Abo und ohne zusätzliche Cloud-Plattform. Die Daten stammen aus den Original-FIT-Dateien
 der Garmin-Geräte und bleiben lokal auf der Home-Assistant-Instanz.
 
-> **Status: Version 0.13.0 – Bestleistungen, Runden, Wetter, Trainingsbelastung, Zonen, Gesundheit und persönliche Einordnung (Bereitschaft, Empfehlung, Normalbereiche, Rückblick, Entwicklung, Normwerte).** Aktivitäten kommen
+> **Status: Version 0.14.0 – Bestleistungen, Runden, Wetter, Trainingsbelastung, Zonen, Gesundheit und persönliche Einordnung (Bereitschaft, Empfehlung, Normalbereiche, Rückblick, Entwicklung, Normwerte, persönliche Zusammenhänge).** Aktivitäten kommen
 > automatisch über die offizielle Garmin Connect Personal API oder per Upload/Garmin-Export,
 > erscheinen als Kacheln mit Streckenskizze, lassen sich mit Karte und Diagrammen ansehen, statistisch auswerten (Dashboard,
 > Jahresziele, Eddington) und als persönliche Heatmap darstellen – hell oder dunkel, auf Handy und Desktop.

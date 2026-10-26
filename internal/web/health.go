@@ -65,12 +65,13 @@ type healthCard struct {
 }
 
 type healthData struct {
-	Ranges []option
-	Cards  []healthCard
-	Chart  template.JS
-	Empty  bool
-	Days   int
-	Trends *trendCard
+	Ranges       []option
+	Cards        []healthCard
+	Chart        template.JS
+	Empty        bool
+	Days         int
+	Trends       *trendCard
+	Correlations *correlationsView
 }
 
 type healthChartData struct {
@@ -164,6 +165,10 @@ func (s *server) healthPage(w http.ResponseWriter, r *http.Request) {
 	}
 	if d.Trends, err = s.healthTrends(ctx, today); err != nil {
 		s.serverError(w, "health trends", err)
+		return
+	}
+	if d.Correlations, err = s.correlations(ctx, today); err != nil {
+		s.serverError(w, "correlations", err)
 		return
 	}
 

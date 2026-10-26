@@ -46,3 +46,4 @@ ausgelassen, ohne Bezug heißt es „Noch zu wenig Verlauf“.
 - [[bereitschaft-modell-kalibriert]]
 - [[zonen-und-schwellen-aus-fit]]
 - [[bestleistungen-regeln]]
+- [[zusammenhaenge-gruppenvergleich]]

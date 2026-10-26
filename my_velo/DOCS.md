@@ -157,6 +157,11 @@ Vergleich zum 4-Wochen- bzw. 12-Monats-Schnitt (laufende Zeiträume anteilig) un
 letzte. Genannt werden nur auffällige Abweichungen: Belastung oder Distanz ±15 %, Schlaf ±20 min,
 Ruhepuls ±2 bpm, HRV ±5 %.
 
+**Was dich beeinflusst:** Die Gesundheitsseite vergleicht über deine ganze Historie Tage mit hoher
+Belastung, intensiven Einheiten, kurzem Schlaf oder viel Stress mit den übrigen Tagen und nennt deutliche
+Unterschiede am Folgetag bzw. in derselben Nacht (mindestens 20 Tage je Gruppe, p < 0,05, HRV ≥ 3 ms,
+Ruhepuls ≥ 1 bpm, Schlafwert ≥ 3, Body Battery ≥ 5). Zusammenhang heißt nicht Ursache.
+
 **Entwicklung:** Training → Statistik und Gesundheit vergleichen die letzten 90 Tage mit den 90 Tagen
 davor und dem Vorjahreszeitraum (FTP, beste Leistungen und Zeiten, Fitness; Ruhepuls, HRV, VO2max). Unter **Mehr → Einordnung** lassen sich
 Gewichte, Grenzen und Regeln anpassen sowie Geburtsjahr und Geschlecht für die Normwerte eintragen (leer =

@@ -30,6 +30,18 @@
 
 {{with .Trends}}{{template "trendCard" .}}{{end}}
 
+{{with .Correlations}}
+<section class="card insight-card" aria-label="Was dich beeinflusst">
+  <h2>Was dich beeinflusst</h2>
+  {{if .Findings}}<ul class="statements">{{range .Findings}}<li class="neutral">{{.Text}}<br><span class="hint small-inline">{{.Detail}}</span></li>{{end}}</ul>
+  {{else}}<p class="hint">In deinen Daten zeigt sich bisher kein deutlicher Zusammenhang.</p>{{end}}
+  {{with .NoEffect}}<p class="hint">Kein deutlicher Zusammenhang: {{.}}.</p>{{end}}
+  {{with .TooFew}}<p class="hint">Noch zu wenige Tage: {{.}}.</p>{{end}}
+  <p class="hint small">Gruppenvergleich über deine ganze Historie (Welch-Test, Bootstrap-Intervall); genannt nur bei
+    mindestens 20 Tagen je Gruppe, p &lt; 0,05 und spürbarem Unterschied. Zusammenhang heißt nicht Ursache.</p>
+</section>
+{{end}}
+
 <div class="segmented subnav" role="group" aria-label="Zeitraum">
   {{range .Ranges}}<a href="health?range={{.ID}}" {{if .Active}}aria-current="true"{{end}}>{{.Label}}</a>{{end}}
 </div>

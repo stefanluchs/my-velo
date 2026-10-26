@@ -69,6 +69,8 @@ type server struct {
 	// files after an update even if they cached the old ones.
 	assetVersion string
 	profiles     profileCache
+	// correlationCache holds the personal correlations (concept G).
+	correlationCache correlationCache
 }
 
 var funcs = template.FuncMap{

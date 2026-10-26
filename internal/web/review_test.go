@@ -116,3 +116,32 @@ func TestProfileNormsAndTrends(t *testing.T) {
 		t.Error("training trends missing")
 	}
 }
+
+func TestCorrelationsSection(t *testing.T) {
+	env := newTestEnv(t)
+	ctx := context.Background()
+	rideDays := map[string]bool{}
+	for k := 1; k <= 30; k++ {
+		d := localDate(testNow).AddDate(0, 0, -4*k)
+		env.importRideOn(t, uint32(1000+k), d)
+		rideDays[d.Format(time.DateOnly)] = true
+	}
+	for i := 1; i <= 125; i++ {
+		d := localDate(testNow).AddDate(0, 0, -i)
+		hrv := 60.0 + float64(i%3)
+		if rideDays[d.AddDate(0, 0, -1).Format(time.DateOnly)] {
+			hrv -= 8
+		}
+		if err := env.store.UpsertHealth(ctx, d.Format(time.DateOnly), store.HealthValues{"hrv_night_avg": hrv, "resting_hr": 50 + i%2}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	body := env.do(ingressGET("/health")).Body.String()
+	for _, want := range []string{"Was dich beeinflusst",
+		"Nach Tagen mit hoher Belastung (ab 50) ist deine HRV in der Nacht danach im Schnitt 8 ms niedriger (30 vs. 89 Tage, 2026).",
+		"95-%-Intervall ", " ms · p &lt; 0,001 · Rangkorrelation −0,77", "Kein deutlicher Zusammenhang: Belastung → Ruhepuls", "Noch zu wenige Tage: "} {
+		if !strings.Contains(body, want) {
+			t.Errorf("health page missing %q", want)
+		}
+	}
+}

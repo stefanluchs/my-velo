@@ -41,3 +41,4 @@ wie ein massiver Einbruch. Beim Echtdaten-Test fiel genau das auf.
 - [[moc-patterns]]
 - [[bereitschaft-modell-kalibriert]]
 - [[gesundheitsdaten-im-export]]
+- [[zusammenhaenge-gruppenvergleich]]

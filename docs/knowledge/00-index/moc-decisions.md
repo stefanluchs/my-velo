@@ -16,6 +16,7 @@ Zurück zum [[index]].
 - [[ui-mobile-first-light-standard]] — 2026-10-23: Bottom-Tabs, Velo-Orange, Hell als Standard, Kacheln
 - [[bereitschaft-modell-kalibriert]] — 2026-10-26: Bereitschaft stufenlos + Belastungsfaktor, ρ 0,77 gegen Garmin
 - [[rueckblick-und-entwicklung-vergleichsregeln]] — 2026-10-26: anteilig ab 40 %, Bestleistung = besser als alle früheren, Fitness absolut
+- [[zusammenhaenge-gruppenvergleich]] — 2026-10-26: Welch + Bootstrap, n ≥ 20, Relevanzschwellen, Cache im Speicher
 - [[training-und-gesundheit-quellen-und-schwellen]] — 2026-10-26: Garmin-Last + eigene, Schwellen von Garmin, v0.8–v0.10
 
 ## Zurückgestellt
