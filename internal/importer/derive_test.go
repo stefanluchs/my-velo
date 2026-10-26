@@ -5,9 +5,11 @@ package importer
 import (
 	"bytes"
 	"context"
+	"math"
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/stefanluchs/my-velo/internal/fitfile"
 	"github.com/stefanluchs/my-velo/internal/fittest"
@@ -77,7 +79,7 @@ func TestReanalyzeUsesArchivedRawFile(t *testing.T) {
 	if err := im.archive(act.SHA256, raw); err != nil {
 		t.Fatal(err)
 	}
-	old, err := recording(act, "export:old.fit")
+	old, err := recording(act, "export:old.fit", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -123,11 +125,68 @@ func TestEBikeHasNoEfforts(t *testing.T) {
 		t.Fatal(err)
 	}
 	act.Sport, act.SubSport = "e_biking", "e_bike_mountain"
-	rec, err := recording(act, "x")
+	rec, err := recording(act, "x", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(rec.Efforts) != 0 {
 		t.Errorf("e-bike efforts: %+v", rec.Efforts)
+	}
+}
+
+func TestZonesFromDeviceAndOverride(t *testing.T) {
+	ctx := context.Background()
+	im := newImporter(t)
+	o := fittest.Default()
+	o.Zones, o.Points = true, 120 // 120 s at 120 bpm and 210 W
+	res := im.ImportReader(ctx, bytes.NewReader(fittest.Encode(t, o)), "a")
+	a, _ := im.Store.Get(ctx, res.ActivityID)
+	if a.Thresholds != (store.Thresholds{Source: store.ThresholdsGarmin, MaxHR: 190, RestHR: 50, ThresholdHR: 170, FTP: 251}) {
+		t.Errorf("thresholds %+v", a.Thresholds)
+	}
+	// NP of a steady 210 W ride is 210; TSS = 120 s × 210 × 0.837 / (251 × 3600) × 100.
+	if a.Own.NP != 210 || math.Abs(a.Own.TSS-2.3) > 0.05 || a.Own.TRIMP <= 0 {
+		t.Errorf("own load %+v", a.Own)
+	}
+	z, _ := im.Store.ActivityZones(ctx, res.ActivityID)
+	if len(z) != 14 || z[2].Kind != store.ZoneHR || z[2].Seconds != 120 || z[6+3].Kind != store.ZonePower || z[6+3].Seconds != 120 {
+		t.Fatalf("device zones %+v", z)
+	}
+
+	// Override from the activity date: at FTP 200, 210 W (105 %) is the
+	// lower bound of Coggan zone 5 (210–240 W).
+	day := time.Date(2026, 5, 1, 0, 0, 0, 0, time.UTC)
+	if err := im.Store.SetOverrides(ctx, []store.Override{{From: day, FTP: 200}}); err != nil {
+		t.Fatal(err)
+	}
+	o.HROffset = 1 // different content → re-derived
+	res = im.ImportReader(ctx, bytes.NewReader(fittest.Encode(t, o)), "a")
+	a, _ = im.Store.Get(ctx, res.ActivityID)
+	if a.Thresholds.Source != store.ThresholdsManual || a.Thresholds.FTP != 200 || a.Thresholds.MaxHR != 190 {
+		t.Errorf("override thresholds %+v", a.Thresholds)
+	}
+	z, _ = im.Store.ActivityZones(ctx, res.ActivityID)
+	var power []store.ZoneSeconds
+	for _, x := range z {
+		if x.Kind == store.ZonePower {
+			power = append(power, x)
+		}
+	}
+	if len(power) != 8 || power[5].Low != 210 || power[5].Seconds < 110 {
+		t.Errorf("computed power zones %+v", power)
+	}
+}
+
+func TestZonesFallbackWithoutDeviceZones(t *testing.T) {
+	ctx := context.Background()
+	im := newImporter(t)
+	if err := im.Store.SetOverrides(ctx, []store.Override{{From: time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC), MaxHR: 200}}); err != nil {
+		t.Fatal(err)
+	}
+	res := im.ImportReader(ctx, bytes.NewReader(fittest.Encode(t, fittest.Default())), "a")
+	z, _ := im.Store.ActivityZones(ctx, res.ActivityID)
+	// 120 bpm at max 200: zone 2 is 120–140.
+	if len(z) != 6 || z[2].Low != 120 || z[2].Seconds < 55 {
+		t.Errorf("computed hr zones %+v", z)
 	}
 }

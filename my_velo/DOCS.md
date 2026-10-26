@@ -4,7 +4,7 @@
 my Velo speichert und zeigt deine Sportaktivitäten lokal in Home Assistant. Quelle sind die
 Original-FIT-Dateien deiner Geräte.
 
-> **Stand 0.8.0:** Import und automatischer Abgleich über die offizielle Garmin Connect Personal
+> **Stand 0.9.0:** Import und automatischer Abgleich über die offizielle Garmin Connect Personal
 > API, Dashboard, Aktivitäten als Kacheln, Detailansicht mit Karte und Diagrammen, Statistik mit
 > Jahreszielen und Eddington-Zahl, persönliche Heatmap. Oberfläche für Handy und Desktop, hell
 > oder dunkel.
@@ -119,6 +119,25 @@ bergab geht, und zählt ab 30 Hm. **E-Bike-Fahrten** zählen nicht zu den Bestle
 
 Nach dem Update auf 0.8.0 berechnet my Velo alle Aktivitäten einmal aus den gespeicherten
 Originaldateien neu; der Fortschritt steht unter **Mehr → Import**.
+
+## Belastung und Zonen
+
+Unter **Training → Belastung** (alle Sportarten zusammen):
+
+- **Fitness** und **Ermüdung**: gewichtete Mittel der täglichen Belastung über 42 bzw. 7 Tage
+  (Banister-Modell, wie CTL/ATL); **Form** = Fitness des Vortags − Ermüdung.
+- **Akute Last**: gewichtete Summe der letzten 7 Tage – derselbe Maßstab wie „Akute Belastung“ auf
+  der Garmin-Uhr – mit dem Verhältnis zum 28-Tage-Schnitt (0,8–1,3 gilt als günstig).
+- Kennzahl wählbar: **Garmin** (Belastung der Uhr, alle Sportarten), **TRIMP** (aus der
+  Herzfrequenz, braucht Ruhepuls und max. HF) oder **TSS** (aus der Leistung, nur mit Leistungsmesser).
+
+Unter **Training → Zonen** stehen die Stunden pro Woche in den Herzfrequenz- oder Leistungszonen
+(Zeit unter Zone 1 zählt nicht mit) und die Anteile locker (Z1–2), mittel (Z3) und intensiv (Z4+).
+
+**Schwellen:** Jede Aktivität nutzt die Zonen und Schwellen, die an ihrem Tag auf der Uhr galten
+(aus der FIT-Datei). Unter **Zonen → Schwellen** lässt sich ab einem Datum eine manuelle max. HF
+und/oder FTP eintragen; dann gelten Standardzonen (HF 50–100 % der max. HF, Leistung 7 Zonen nach
+Coggan) und die betroffenen Aktivitäten werden im Hintergrund neu berechnet.
 
 ## Übersicht und Statistik
 

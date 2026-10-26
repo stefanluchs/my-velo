@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math"
 	"strconv"
+	"strings"
 
 	"github.com/stefanluchs/my-velo/internal/analysis"
 	"github.com/stefanluchs/my-velo/internal/store"
@@ -200,4 +201,90 @@ func trainingViews(t store.Training) []trainingView {
 		add("Anstrengung (RPE)", germanFloat(t.RPE, 0)+" / 10")
 	}
 	return out
+}
+
+// ownLoadViews lists my Velo's own load values.
+func ownLoadViews(o store.OwnLoad) []trainingView {
+	var out []trainingView
+	if o.TRIMP > 0 {
+		out = append(out, trainingView{"TRIMP", fmt.Sprintf("%.0f", o.TRIMP)})
+	}
+	if o.TSS > 0 {
+		out = append(out, trainingView{"TSS (eigene)", fmt.Sprintf("%.0f · NP %d W", o.TSS, o.NP)})
+	}
+	return out
+}
+
+// zoneRow is one bar of the time-in-zones chart of an activity.
+type zoneRow struct {
+	Zone  int
+	Range string
+	Time  string
+	Pct   float64
+}
+
+// zoneSet is the zone chart of one kind (heart rate or power).
+type zoneSet struct {
+	Kind  string
+	Title string
+	Rows  []zoneRow
+}
+
+// zoneSets turns the stored zones into bar charts. Zone 0 (below zone 1)
+// is left out; shares are relative to the time in zones 1+.
+func zoneSets(zones []store.ZoneSeconds) []zoneSet {
+	var out []zoneSet
+	for _, kind := range []string{store.ZoneHR, store.ZonePower} {
+		var rows []zoneRow
+		total := 0.0
+		for _, z := range zones {
+			if z.Kind == kind && z.Zone > 0 {
+				total += z.Seconds
+			}
+		}
+		if total == 0 {
+			continue
+		}
+		unit := map[string]string{store.ZoneHR: "bpm", store.ZonePower: "W"}[kind]
+		for _, z := range zones {
+			if z.Kind != kind || z.Zone == 0 {
+				continue
+			}
+			r := fmt.Sprintf("%.0f–%.0f %s", z.Low, z.High, unit)
+			if kind == store.ZonePower && z.High >= 4000 {
+				r = fmt.Sprintf("ab %.0f W", z.Low)
+			}
+			rows = append(rows, zoneRow{Zone: z.Zone, Range: r, Time: effortTime(z.Seconds), Pct: math.Round(1000*z.Seconds/total) / 10})
+		}
+		out = append(out, zoneSet{Kind: kind, Title: map[string]string{store.ZoneHR: "Herzfrequenz-Zonen", store.ZonePower: "Leistungszonen"}[kind], Rows: rows})
+	}
+	return out
+}
+
+// thresholdNote describes which thresholds the zones of an activity use.
+// FTP is only mentioned with power zones: watches report a (default) FTP
+// even for rides without power meter.
+func thresholdNote(t store.Thresholds, zones []zoneSet) string {
+	hasPower := false
+	for _, z := range zones {
+		hasPower = hasPower || z.Kind == store.ZonePower
+	}
+	var parts []string
+	if t.MaxHR > 0 {
+		parts = append(parts, fmt.Sprintf("max. HF %d", t.MaxHR))
+	}
+	if t.RestHR > 0 {
+		parts = append(parts, fmt.Sprintf("Ruhepuls %d", t.RestHR))
+	}
+	if t.FTP > 0 && hasPower {
+		parts = append(parts, fmt.Sprintf("FTP %d W", t.FTP))
+	}
+	if len(parts) == 0 {
+		return ""
+	}
+	src := "von der Uhr"
+	if t.Source == store.ThresholdsManual {
+		src = "manuell"
+	}
+	return "Schwellen " + src + ": " + strings.Join(parts, " · ")
 }

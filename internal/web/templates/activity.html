@@ -74,6 +74,18 @@
 </section>
 {{end}}
 
+{{if .Zones}}
+<section class="card zones-card">
+  {{range .Zones}}
+  <h2>{{.Title}}</h2>
+  <ul class="zone-bars">
+    {{range .Rows}}<li class="zone-{{.Zone}}" title="{{.Range}}"><span>Z{{.Zone}}</span><span class="bar"><span style="width: {{.Pct}}%"></span></span><span class="time">{{.Time}} · {{printf "%.0f" .Pct}} %</span></li>{{end}}
+  </ul>
+  {{end}}
+  {{with .ZoneNote}}<p class="hint">{{.}} · <a href="zones#thresholds">ändern</a></p>{{end}}
+</section>
+{{end}}
+
 <section class="card charts-card">
   <div class="chart-head">
     <h2>Verlauf</h2>

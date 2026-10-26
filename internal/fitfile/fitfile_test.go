@@ -157,3 +157,32 @@ func TestTrainingFieldsAndLaps(t *testing.T) {
 		t.Errorf("without training fields: %+v, %d laps", plain.Training, len(plain.Laps))
 	}
 }
+
+func TestZonesFromTimeInZone(t *testing.T) {
+	o := defaultFixture()
+	o.Zones = true
+	act, err := Decode(encode(t, o))
+	if err != nil {
+		t.Fatal(err)
+	}
+	z := act.Zones
+	if z.MaxHR != 190 || z.RestHR != 50 || z.ThresholdHR != 170 || z.FTP != 251 || z.Female {
+		t.Errorf("thresholds %+v", z)
+	}
+	if len(z.HR) != 6 || z.HR[2].Seconds != 60 || z.HR[2].Low != 114 || z.HR[2].High != 133 || z.HR[0].High != 95 {
+		t.Errorf("hr zones %+v", z.HR)
+	}
+	if len(z.Power) != 8 || z.Power[3].Seconds != 60 || z.Power[7].High != 4000 {
+		t.Errorf("power zones %+v", z.Power)
+	}
+
+	o.Power = false
+	act, _ = Decode(encode(t, o))
+	if act.Zones.Power != nil || act.Zones.FTP != 251 {
+		t.Errorf("without power meter no power zones: %+v", act.Zones)
+	}
+	plain, _ := Decode(encode(t, defaultFixture()))
+	if plain.Zones.HR != nil || plain.Zones.MaxHR != 0 {
+		t.Errorf("no zones expected: %+v", plain.Zones)
+	}
+}

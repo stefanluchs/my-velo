@@ -46,7 +46,7 @@ func TestRecordsPage(t *testing.T) {
 
 	body := env.do(ingressGET("/records")).Body.String()
 	for _, want := range []string{
-		`href="records" aria-current="true">Bestleistungen</a>`, `class="chip active" href="records?grp=bike"`,
+		`href="records" aria-current="true">Bestwerte</a>`, `class="chip active" href="records?grp=bike"`,
 		"<h2>Leistungskurve</h2>", `"labels":["5 s","15 s","30 s","1 min"]`, `"allTime":[210,210,210,210]`,
 		`from "./static/records.js?v=`, `href="activities/` + itoa(ids[0]) + `"`,
 	} {

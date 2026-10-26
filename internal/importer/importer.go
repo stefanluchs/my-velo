@@ -35,7 +35,8 @@ import (
 //
 //  1. stream, track, summary metrics
 //  2. training values, laps/splits, best efforts
-const AnalysisVersion = 2
+//  3. time in zones, thresholds, own load (NP, TSS, TRIMP)
+const AnalysisVersion = 3
 
 // StreamEncoding describes how activity streams are stored.
 const StreamEncoding = "json+gzip;v1"
@@ -112,7 +113,11 @@ func (im *Importer) ImportReader(ctx context.Context, r io.Reader, origin string
 	if err := im.archive(act.SHA256, raw); err != nil {
 		return res.fail(fmt.Errorf("archive raw file: %w", err))
 	}
-	rec, err := recording(act, origin)
+	overrides, err := im.Store.Overrides(ctx)
+	if err != nil {
+		return res.fail(err)
+	}
+	rec, err := recording(act, origin, overrides)
 	if err != nil {
 		return res.fail(err)
 	}
@@ -198,7 +203,7 @@ func (im *Importer) archive(sha string, raw []byte) error {
 	return os.Rename(tmp.Name(), target)
 }
 
-func recording(act *fitfile.Activity, origin string) (store.Recording, error) {
+func recording(act *fitfile.Activity, origin string, overrides []store.Override) (store.Recording, error) {
 	stream, err := EncodeStream(&act.Stream)
 	if err != nil {
 		return store.Recording{}, fmt.Errorf("encode stream: %w", err)
@@ -239,6 +244,7 @@ func recording(act *fitfile.Activity, origin string) (store.Recording, error) {
 	}
 	rec.Laps = laps(act, plan.SplitM)
 	rec.Efforts = efforts(&act.Stream, plan)
+	rec.Activity.Thresholds, rec.Activity.Own, rec.Zones = zonesAndLoad(act, overrides)
 	if act.BBox != nil {
 		b := store.BBox(*act.BBox)
 		rec.Activity.BBox = &b
@@ -388,4 +394,76 @@ func (im *Importer) reanalyzeOne(ctx context.Context, f store.SourceFile) Result
 func (im *Importer) Outdated(ctx context.Context) (int, error) {
 	files, err := im.Store.Outdated(ctx, AnalysisVersion)
 	return len(files), err
+}
+
+// zonesAndLoad derives thresholds, time in zones and own load. Garmin's
+// time in zones is used as recorded; a manual override valid at the
+// activity date (or missing device zones with known thresholds) computes
+// the zones from the stream with default zone models instead.
+func zonesAndLoad(act *fitfile.Activity, overrides []store.Override) (store.Thresholds, store.OwnLoad, []store.ZoneSeconds) {
+	z := act.Zones
+	th := store.Thresholds{MaxHR: z.MaxHR, RestHR: z.RestHR, ThresholdHR: z.ThresholdHR, FTP: z.FTP}
+	if th.FTP == 0 {
+		th.FTP = act.Training.ThresholdPower
+	}
+	if th != (store.Thresholds{}) {
+		th.Source = store.ThresholdsGarmin
+	}
+	hr, power := fromDevice(store.ZoneHR, z.HR), fromDevice(store.ZonePower, z.Power)
+	st := &act.Stream
+
+	local := act.StartTime.Add(time.Duration(act.TZOffsetS) * time.Second)
+	day := time.Date(local.Year(), local.Month(), local.Day(), 0, 0, 0, 0, time.UTC)
+	if o, ok := store.OverrideAt(overrides, day); ok {
+		if o.MaxHR > 0 {
+			th.MaxHR, th.Source, hr = o.MaxHR, store.ThresholdsManual, nil
+		}
+		if o.FTP > 0 {
+			th.FTP, th.Source, power = o.FTP, store.ThresholdsManual, nil
+		}
+	}
+	if hr == nil && act.HasHR && th.MaxHR > 0 {
+		hr = computed(store.ZoneHR, analysis.HRZoneBounds(th.MaxHR), analysis.TimeInZones(st.T, st.HR, analysis.HRZoneBounds(th.MaxHR)))
+	}
+	if power == nil && act.HasPower && th.FTP > 0 {
+		b := analysis.PowerZoneBounds(th.FTP)
+		power = computed(store.ZonePower, b, analysis.TimeInZones(st.T, st.Power, b))
+	}
+
+	var own store.OwnLoad
+	if act.HasPower {
+		np := analysis.NormalizedPower(st.T, st.Power)
+		own.NP = int(math.Round(np))
+		own.TSS = round1(analysis.TSS(np, th.FTP, act.TimerS))
+	}
+	if act.HasHR {
+		own.TRIMP = round1(analysis.TRIMP(st.T, st.HR, th.RestHR, th.MaxHR, z.Female))
+	}
+	return th, own, append(hr, power...)
+}
+
+func fromDevice(kind string, in []fitfile.ZoneTime) []store.ZoneSeconds {
+	out := make([]store.ZoneSeconds, 0, len(in))
+	for _, z := range in {
+		out = append(out, store.ZoneSeconds{Kind: kind, Zone: z.Zone, Low: z.Low, High: z.High, Seconds: round1(z.Seconds)})
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
+}
+
+func computed(kind string, bounds, seconds []float64) []store.ZoneSeconds {
+	if seconds == nil {
+		return nil
+	}
+	out := make([]store.ZoneSeconds, len(bounds))
+	for i := range bounds {
+		low := 0.0
+		if i > 0 {
+			low = bounds[i-1]
+		}
+		out[i] = store.ZoneSeconds{Kind: kind, Zone: i, Low: low, High: bounds[i], Seconds: round1(seconds[i])}
+	}
+	return out
 }

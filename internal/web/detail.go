@@ -32,6 +32,8 @@ type detailData struct {
 	Efforts    []effortView
 	Weather    *weatherView
 	Training   []trainingView
+	Zones      []zoneSet
+	ZoneNote   string
 }
 
 func (s *server) activityID(w http.ResponseWriter, r *http.Request) (int64, bool) {
@@ -91,7 +93,14 @@ func (s *server) activity(w http.ResponseWriter, r *http.Request) {
 		v := newWeatherView(wt)
 		d.Weather = &v
 	}
-	d.Training = trainingViews(d.Activity.Training)
+	d.Training = append(trainingViews(d.Activity.Training), ownLoadViews(d.Activity.Own)...)
+	zones, err := s.Store.ActivityZones(ctx, id)
+	if err != nil {
+		s.serverError(w, "load zones", err)
+		return
+	}
+	d.Zones = zoneSets(zones)
+	d.ZoneNote = thresholdNote(d.Activity.Thresholds, d.Zones)
 	s.render(w, r, "activity.html", "activities", d)
 }
 

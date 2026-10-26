@@ -34,6 +34,13 @@
   --chart-year-3: #2f9e44;
   --chart-year-4: #6741d9;
   --chart-year-5: #868e96;
+  --zone-1: #868e96;
+  --zone-2: #1971c2;
+  --zone-3: #2f9e44;
+  --zone-4: #e8590c;
+  --zone-5: #c92a2a;
+  --zone-6: #7048e8;
+  --zone-7: #343a40;
   --shadow: 0 1px 2px rgb(16 24 40 / 6%), 0 1px 3px rgb(16 24 40 / 6%);
   --sheet-shadow: 0 -8px 24px rgb(16 24 40 / 16%);
 
@@ -86,6 +93,13 @@
   --chart-year-3: #51cf66;
   --chart-year-4: #9775fa;
   --chart-year-5: #868e96;
+  --zone-1: #adb5bd;
+  --zone-2: #4dabf7;
+  --zone-3: #51cf66;
+  --zone-4: #ff922b;
+  --zone-5: #ff6b6b;
+  --zone-6: #9775fa;
+  --zone-7: #e9ecef;
   --shadow: none;
   --sheet-shadow: 0 -8px 24px rgb(0 0 0 / 45%);
 }
@@ -118,6 +132,13 @@
     --chart-year-3: #51cf66;
     --chart-year-4: #9775fa;
     --chart-year-5: #868e96;
+    --zone-1: #adb5bd;
+    --zone-2: #4dabf7;
+    --zone-3: #51cf66;
+    --zone-4: #ff922b;
+    --zone-5: #ff6b6b;
+    --zone-6: #9775fa;
+    --zone-7: #e9ecef;
     --shadow: none;
     --sheet-shadow: 0 -8px 24px rgb(0 0 0 / 45%);
   }
@@ -1639,3 +1660,164 @@ button.effort-chip.selected {
   min-width: 0;
   font-variant-numeric: tabular-nums;
 }
+
+/* ---------- Training: load and zones ---------- */
+.subnav {
+  display: flex;
+  width: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.subnav a {
+  flex: 1 1 auto;
+  padding: 0 6px;
+  font-size: 0.875rem;
+}
+
+.subnav::-webkit-scrollbar {
+  display: none;
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+.stat-cards {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+.stat-cards.three {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.stat-cards > .card {
+  margin: 0;
+}
+
+@media (min-width: 48rem) {
+  .stat-cards {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .stat-cards.three {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.stat-card h2 {
+  margin-bottom: var(--space-1);
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+.stat-card .big {
+  margin: 0;
+}
+
+.stat-card .big strong {
+  font-size: 1.8rem;
+}
+
+.stat-card .status {
+  margin: 0;
+  font-weight: 600;
+  color: var(--accent-text);
+}
+
+.stat-card .hint {
+  margin: var(--space-1) 0 0;
+  font-size: 0.8rem;
+}
+
+h2.sub {
+  margin-top: var(--space-4);
+  font-size: 0.95rem;
+}
+
+.legend-inline {
+  margin-top: var(--space-2);
+}
+
+.swatch.zone-1 { --swatch: var(--zone-1); }
+.swatch.zone-2 { --swatch: var(--zone-2); }
+.swatch.zone-3 { --swatch: var(--zone-3); }
+.swatch.zone-4 { --swatch: var(--zone-4); }
+.swatch.zone-5 { --swatch: var(--zone-5); }
+.swatch.zone-6 { --swatch: var(--zone-6); }
+.swatch.zone-7 { --swatch: var(--zone-7); }
+
+.legend .swatch[class*="zone-"] {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+}
+
+.override-list {
+  padding: 0;
+  margin: var(--space-3) 0;
+  list-style: none;
+}
+
+.override-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  border-bottom: 1px solid var(--border);
+}
+
+.override-form {
+  margin-top: var(--space-3);
+}
+
+/* Zone bars on the detail page */
+.zone-bars {
+  display: grid;
+  gap: var(--space-1);
+  padding: 0;
+  margin: 0 0 var(--space-3);
+  list-style: none;
+}
+
+.zone-bars li {
+  display: grid;
+  grid-template-columns: 2.2rem minmax(0, 1fr) 6.5rem;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.zone-bars .bar {
+  height: 14px;
+  border-radius: 3px;
+  background: var(--surface-2);
+  overflow: hidden;
+}
+
+.zone-bars .bar span {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+  background: var(--zone-color);
+}
+
+.zone-bars .time {
+  text-align: right;
+}
+
+.zone-bars .zone-1 { --zone-color: var(--zone-1); }
+.zone-bars .zone-2 { --zone-color: var(--zone-2); }
+.zone-bars .zone-3 { --zone-color: var(--zone-3); }
+.zone-bars .zone-4 { --zone-color: var(--zone-4); }
+.zone-bars .zone-5 { --zone-color: var(--zone-5); }
+.zone-bars .zone-6 { --zone-color: var(--zone-6); }
+.zone-bars .zone-7 { --zone-color: var(--zone-7); }

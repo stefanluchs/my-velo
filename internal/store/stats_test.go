@@ -116,7 +116,7 @@ func TestUpgradeFromSchema1(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer s.Close()
-	if v, _ := s.SchemaVersion(ctx); v != 3 {
+	if v, _ := s.SchemaVersion(ctx); v != 4 {
 		t.Errorf("schema %d", v)
 	}
 	var title sql.NullString

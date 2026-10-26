@@ -50,6 +50,7 @@ Wetterdaten bleiben erhalten (Netzabruf, kein Ableitungsergebnis).
 
 ## Verbindungen
 - [[bestleistungen-regeln]]
+- [[zonen-und-schwellen-aus-fit]]
 - [[wetter-ueber-open-meteo]]
 - [[moc-domain]]
 - [[analysis-version]]

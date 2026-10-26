@@ -121,10 +121,33 @@ type Lap struct {
 	Trigger string `json:"trigger"`
 }
 
-// Activity is a decoded activity file: summary, laps and per-record streams.
+// ZoneTime is the time spent in one zone. Zone 0 is the time below zone 1;
+// time above the top boundary counts to the top zone.
+type ZoneTime struct {
+	Zone      int     `json:"zone"`
+	Low, High float64 `json:"-"`
+	Seconds   float64 `json:"seconds"`
+}
+
+// Zones holds Garmin's time in zones of the session and the thresholds the
+// device used at the time of the activity.
+type Zones struct {
+	HR    []ZoneTime
+	Power []ZoneTime
+	// MaxHR, RestHR, ThresholdHR and FTP are 0 if not recorded.
+	MaxHR       int
+	RestHR      int
+	ThresholdHR int
+	FTP         int
+	// Female selects the TRIMP weighting; from the user profile.
+	Female bool
+}
+
+// Activity is a decoded activity file: summary, laps, zones and per-record streams.
 type Activity struct {
 	Summary
 	Laps   []Lap
+	Zones  Zones
 	Stream Stream
 }
 
@@ -207,7 +230,7 @@ func Decode(raw []byte) (*Activity, error) {
 	summarizeSessions(&s, act.Sessions)
 	stream := buildStream(&s, act.Records)
 	s.TZOffsetS = tzOffset(act.Activity)
-	return &Activity{Summary: s, Laps: laps(s.StartTime, act.Laps), Stream: stream}, nil
+	return &Activity{Summary: s, Laps: laps(s.StartTime, act.Laps), Zones: zones(act, &s), Stream: stream}, nil
 }
 
 // tzOffset derives the UTC offset from the activity message. Offsets outside
@@ -328,4 +351,83 @@ func validU16(v uint16) int {
 		return 0
 	}
 	return int(v)
+}
+
+// zones reads the session's time_in_zone message. Power zones are only kept
+// when power was recorded: with an FTP set but no power meter, Garmin
+// reports the whole activity in power zone 1.
+func zones(act *filedef.Activity, s *Summary) Zones {
+	var z Zones
+	if p := act.UserProfile; p != nil {
+		z.RestHR = validU8(p.RestingHeartRate)
+		z.Female = p.Gender == typedef.GenderFemale
+	}
+	for _, t := range act.ZonesTargets {
+		z.MaxHR = max(z.MaxHR, validU8(t.MaxHeartRate))
+		z.ThresholdHR = max(z.ThresholdHR, validU8(t.ThresholdHeartRate))
+		z.FTP = max(z.FTP, validU16(t.FunctionalThresholdPower))
+	}
+	for _, t := range act.TimeInZones {
+		if t.ReferenceMesg != typedef.MesgNumSession || t.ReferenceIndex != 0 {
+			continue
+		}
+		if v := validU8(t.MaxHeartRate); v > 0 {
+			z.MaxHR = v
+		}
+		if v := validU8(t.RestingHeartRate); v > 0 {
+			z.RestHR = v
+		}
+		if v := validU8(t.ThresholdHeartRate); v > 0 {
+			z.ThresholdHR = v
+		}
+		if v := validU16(t.FunctionalThresholdPower); v > 0 {
+			z.FTP = v
+		}
+		if s.HasHR {
+			hb := make([]float64, 0, len(t.HrZoneHighBoundary))
+			for _, b := range t.HrZoneHighBoundary {
+				if b != basetype.Uint8Invalid {
+					hb = append(hb, float64(b))
+				}
+			}
+			z.HR = zoneTimes(hb, t.TimeInHrZone)
+		}
+		if s.HasPower {
+			pb := make([]float64, 0, len(t.PowerZoneHighBoundary))
+			for _, b := range t.PowerZoneHighBoundary {
+				if b != basetype.Uint16Invalid {
+					pb = append(pb, float64(b))
+				}
+			}
+			z.Power = zoneTimes(pb, t.TimeInPowerZone)
+		}
+	}
+	return z
+}
+
+// zoneTimes maps Garmin's arrays to zones: bounds[i] is the upper bound of
+// zone i (bounds[0] = lower bound of zone 1); times[0] is below zone 1 and
+// times[len(bounds)] above the top bound. Times are in milliseconds.
+func zoneTimes(bounds []float64, times []uint32) []ZoneTime {
+	if len(bounds) < 2 {
+		return nil
+	}
+	sec := func(i int) float64 {
+		if i < len(times) && times[i] != basetype.Uint32Invalid {
+			return float64(times[i]) / 1000
+		}
+		return 0
+	}
+	out := []ZoneTime{{Zone: 0, Low: 0, High: bounds[0], Seconds: sec(0)}}
+	total := sec(0)
+	for i := 1; i < len(bounds); i++ {
+		out = append(out, ZoneTime{Zone: i, Low: bounds[i-1], High: bounds[i], Seconds: sec(i)})
+		total += sec(i)
+	}
+	above := sec(len(bounds))
+	out[len(out)-1].Seconds += above
+	if total+above == 0 {
+		return nil
+	}
+	return out
 }

@@ -47,6 +47,9 @@ type Activity struct {
 	BBox *BBox
 
 	Training Training
+	// Thresholds used for zones and own load at the date of the activity.
+	Thresholds Thresholds
+	Own        OwnLoad
 
 	AnalysisVersion int
 	CreatedAt       time.Time
@@ -65,6 +68,44 @@ type Training struct {
 	ThresholdPower  int
 	RPE             float64
 	Feel            int
+}
+
+// Threshold sources.
+const (
+	ThresholdsGarmin = "garmin"
+	ThresholdsManual = "manual"
+)
+
+// Thresholds are the heart-rate and power thresholds of an activity; zero
+// means unknown.
+type Thresholds struct {
+	Source      string
+	MaxHR       int
+	RestHR      int
+	ThresholdHR int
+	FTP         int
+}
+
+// OwnLoad is my Velo's own training load next to Garmin's value: TSS from
+// power (needs FTP), TRIMP from heart rate (needs resting and max HR).
+type OwnLoad struct {
+	NP    int
+	TSS   float64
+	TRIMP float64
+}
+
+// Zone kinds.
+const (
+	ZoneHR    = "hr"
+	ZonePower = "power"
+)
+
+// ZoneSeconds is the time in one zone of an activity.
+type ZoneSeconds struct {
+	Kind      string
+	Zone      int
+	Low, High float64
+	Seconds   float64
 }
 
 // Lap is a lap of an activity or, with Auto, an automatic distance split.
@@ -136,6 +177,7 @@ type Recording struct {
 	Track    *Track // nil for activities without GPS
 	Laps     []Lap
 	Efforts  []Effort
+	Zones    []ZoneSeconds
 }
 
 // SaveStatus describes what SaveRecording did.
@@ -235,6 +277,15 @@ func saveDerived(ctx context.Context, tx *sql.Tx, id int64, rec Recording) error
 	if _, err := tx.ExecContext(ctx, `DELETE FROM activity_effort WHERE activity_id = ?`, id); err != nil {
 		return err
 	}
+	if _, err := tx.ExecContext(ctx, `DELETE FROM activity_zone WHERE activity_id = ?`, id); err != nil {
+		return err
+	}
+	for _, z := range rec.Zones {
+		if _, err := tx.ExecContext(ctx, `INSERT INTO activity_zone (activity_id, kind, zone, low, high, seconds)
+			VALUES (?, ?, ?, ?, ?, ?)`, id, z.Kind, z.Zone, z.Low, z.High, z.Seconds); err != nil {
+			return err
+		}
+	}
 	for _, e := range rec.Efforts {
 		if _, err := tx.ExecContext(ctx, `INSERT INTO activity_effort (activity_id, grp, kind, key, value, start_s, end_s, extra)
 			VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, id, e.Group, e.Kind, e.Key, e.Value, e.StartS, e.EndS, nullFloat(e.Extra)); err != nil {
@@ -250,7 +301,8 @@ const metricColumns = `sport, sub_sport, start_time, tz_offset_s, distance_m, ti
 	ascent_m, descent_m, avg_speed_mps, max_speed_mps, avg_heart_rate, max_heart_rate,
 	avg_power, max_power, avg_cadence, device_manufacturer, device_product, device_serial,
 	min_lat, min_lon, max_lat, max_lon, training_effect, anaerobic_training_effect, training_load,
-	normalized_power, training_stress_score, intensity_factor, threshold_power, rpe, feel, analysis_version`
+	normalized_power, training_stress_score, intensity_factor, threshold_power, rpe, feel,
+	zone_source, zone_max_hr, zone_rest_hr, zone_threshold_hr, zone_ftp, own_np, own_tss, own_trimp, analysis_version`
 
 func metricValues(a Activity) []any {
 	var minLat, minLon, maxLat, maxLon any
@@ -266,6 +318,9 @@ func metricValues(a Activity) []any {
 		nullFloat(a.Training.Effect), nullFloat(a.Training.AnaerobicEffect), nullFloat(a.Training.Load),
 		nullInt(a.Training.NormalizedPower), nullFloat(a.Training.TSS), nullFloat(a.Training.IntensityFactor),
 		nullInt(a.Training.ThresholdPower), nullFloat(a.Training.RPE), nullInt(a.Training.Feel),
+		nullString(a.Thresholds.Source), nullInt(a.Thresholds.MaxHR), nullInt(a.Thresholds.RestHR),
+		nullInt(a.Thresholds.ThresholdHR), nullInt(a.Thresholds.FTP),
+		nullInt(a.Own.NP), nullFloat(a.Own.TSS), nullFloat(a.Own.TRIMP),
 		a.AnalysisVersion,
 	}
 }
@@ -525,11 +580,15 @@ func scanActivity(sc scanner) (Activity, error) {
 		minLat, minLon, maxLat, maxLon     sql.NullFloat64
 		te, ate, load, tss, ifac, rpe      sql.NullFloat64
 		np, ftp, feel                      sql.NullInt64
+		zsrc                               sql.NullString
+		zmax, zrest, zthr, zftp, ownNP     sql.NullInt64
+		ownTSS, ownTRIMP                   sql.NullFloat64
 	)
 	err := sc.Scan(&a.ID, &name, &a.Sport, &a.SubSport, &start, &a.TZOffsetS, &a.DistanceM, &a.TimerS, &a.ElapsedS,
 		&ascent, &descent, &avgSpeed, &maxSpeed, &avgHR, &maxHR, &avgPw, &maxPw, &avgCad,
 		&a.DeviceManufacturer, &a.DeviceProduct, &a.DeviceSerial,
 		&minLat, &minLon, &maxLat, &maxLon, &te, &ate, &load, &np, &tss, &ifac, &ftp, &rpe, &feel,
+		&zsrc, &zmax, &zrest, &zthr, &zftp, &ownNP, &ownTSS, &ownTRIMP,
 		&a.AnalysisVersion, &created, &updated)
 	if err != nil {
 		return a, err
@@ -542,6 +601,9 @@ func scanActivity(sc scanner) (Activity, error) {
 	a.Training = Training{Effect: te.Float64, AnaerobicEffect: ate.Float64, Load: load.Float64,
 		NormalizedPower: int(np.Int64), TSS: tss.Float64, IntensityFactor: ifac.Float64,
 		ThresholdPower: int(ftp.Int64), RPE: rpe.Float64, Feel: int(feel.Int64)}
+	a.Thresholds = Thresholds{Source: zsrc.String, MaxHR: int(zmax.Int64), RestHR: int(zrest.Int64),
+		ThresholdHR: int(zthr.Int64), FTP: int(zftp.Int64)}
+	a.Own = OwnLoad{NP: int(ownNP.Int64), TSS: ownTSS.Float64, TRIMP: ownTRIMP.Float64}
 	if minLat.Valid {
 		a.BBox = &BBox{MinLat: minLat.Float64, MinLon: minLon.Float64, MaxLat: maxLat.Float64, MaxLon: maxLon.Float64}
 	}

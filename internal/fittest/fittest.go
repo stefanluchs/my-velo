@@ -38,6 +38,9 @@ type Options struct {
 	// Training adds Garmin training fields to the session (training effect
 	// 3.3, anaerobic 1.2, load 50, NP 215, TSS 20.7, IF 0.85, FTP 250).
 	Training bool
+	// Zones adds Garmin's time in zones: max HR 190, resting 50, LTHR 170,
+	// FTP 251; the whole recording in HR zone 2 and power zone 3.
+	Zones bool
 }
 
 // Default returns a 60-second outdoor ride with GPS, heart rate and power.
@@ -106,6 +109,19 @@ func Encode(tb testing.TB, o Options) []byte {
 			SetTotalTimerTime(uint32(o.Points*1000)).
 			SetTotalElapsedTime(uint32(o.Points*1000)).
 			SetTotalAscent(12))
+		if o.Zones {
+			act.UserProfile = mesgdef.NewUserProfile(nil).SetRestingHeartRate(50).SetGender(typedef.GenderMale)
+			act.ZonesTargets = append(act.ZonesTargets, mesgdef.NewZonesTarget(nil).SetMaxHeartRate(190).
+				SetThresholdHeartRate(170).SetFunctionalThresholdPower(251))
+			ms := uint32(o.Points * 1000)
+			act.TimeInZones = append(act.TimeInZones, mesgdef.NewTimeInZone(nil).
+				SetTimestamp(end).SetReferenceMesg(typedef.MesgNumSession).SetReferenceIndex(0).
+				SetHrZoneHighBoundary([]uint8{95, 114, 133, 152, 171, 190}).
+				SetTimeInHrZone([]uint32{0, 0, ms, 0, 0, 0, 0}).
+				SetPowerZoneHighBoundary([]uint16{0, 138, 188, 226, 264, 301, 377, 4000}).
+				SetTimeInPowerZone([]uint32{0, 0, 0, ms, 0, 0, 0, 0, 0}).
+				SetMaxHeartRate(190).SetRestingHeartRate(50).SetThresholdHeartRate(170).SetFunctionalThresholdPower(251))
+		}
 		act.Activity = mesgdef.NewActivity(nil).
 			SetTimestamp(end).
 			SetLocalTimestamp(end.Add(2 * time.Hour)).

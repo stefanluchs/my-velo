@@ -44,3 +44,4 @@ Navigation: Statistik wird „Training“ mit Unterseiten, eigener Tab „Gesund
 - [[ui-mobile-first-light-standard]]
 - [[bestleistungen-regeln]]
 - [[wetter-ueber-open-meteo]]
+- [[zonen-und-schwellen-aus-fit]]

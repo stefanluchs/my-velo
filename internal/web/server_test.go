@@ -72,6 +72,7 @@ type testEnv struct {
 	handler   http.Handler
 	store     *store.Store
 	jobs      *Jobs
+	importer  *importer.Importer
 	importDir string
 	tempDir   string
 }
@@ -84,11 +85,12 @@ func newTestEnv(t *testing.T) *testEnv {
 	}
 	t.Cleanup(func() { st.Close() })
 	dir := t.TempDir()
-	env := &testEnv{store: st, jobs: NewJobs(context.Background()), importDir: filepath.Join(dir, "import"), tempDir: filepath.Join(dir, "tmp")}
+	env := &testEnv{store: st, jobs: NewJobs(context.Background()), importDir: filepath.Join(dir, "import"), tempDir: filepath.Join(dir, "tmp"),
+		importer: &importer.Importer{Store: st, RawDir: filepath.Join(dir, "raw")}}
 	env.handler = NewHandler(Deps{
 		Info:      Info{Version: "1.2.3", StartedAt: time.Now(), MapProvider: "maptiler", MapKeySet: true},
 		Store:     st,
-		Importer:  &importer.Importer{Store: st, RawDir: filepath.Join(dir, "raw")},
+		Importer:  env.importer,
 		Jobs:      env.jobs,
 		ImportDir: env.importDir,
 		TempDir:   env.tempDir,

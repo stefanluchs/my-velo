@@ -20,3 +20,5 @@ Zurück zum [[index]].
 ## Training und Gesundheit
 - [[trainings-und-gesundheitsdaten-quellen]] — Last in FIT, Historie im Export-JSON, laufend über Personal API
 - [[bestleistungen-regeln]] — Gesamtzeit interpoliert, 1-s-Leistung, 10 m Anstiegs-Toleranz, ohne E-Bikes
+- [[zonen-und-schwellen-aus-fit]] — `time_in_zone` je Aktivität, Schwellen-Historie ohne API
+- [[trainingsbelastung-modell-und-garmin-massstab]] — CTL/ATL/TSB; Garmins akute Last ≈ ATL × 7

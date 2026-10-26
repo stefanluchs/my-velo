@@ -45,3 +45,5 @@ Geprüft am 26.10.2026 am eigenen Bestand (nur Feldnamen und Zeiträume, keine W
 - [[garmin-bulk-export-aufbau]]
 - [[personal-api-token-und-endpunkte]]
 - [[training-und-gesundheit-quellen-und-schwellen]]
+- [[zonen-und-schwellen-aus-fit]]
+- [[trainingsbelastung-modell-und-garmin-massstab]]

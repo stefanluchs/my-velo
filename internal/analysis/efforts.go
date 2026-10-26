@@ -72,6 +72,36 @@ const maxPowerHold = 5
 // (the "mean maximal power" curve). Records are resampled to one value per
 // second; durations longer than the activity are missing from the result.
 func PowerCurve(t []int64, power []float64, durations []int) map[int]PowerEffort {
+	grid := powerGrid(t, power)
+	if grid == nil {
+		return nil
+	}
+	length := len(grid)
+	prefix := make([]float64, length+1)
+	for s, p := range grid {
+		prefix[s+1] = prefix[s] + p
+	}
+	out := map[int]PowerEffort{}
+	for _, d := range durations {
+		if d <= 0 || d > length {
+			continue
+		}
+		best, at := -1.0, 0
+		for s := 0; s+d <= length; s++ {
+			if sum := prefix[s+d] - prefix[s]; sum > best {
+				best, at = sum, s
+			}
+		}
+		if best > 0 {
+			out[d] = PowerEffort{Watts: best / float64(d), Window: Window{StartS: float64(at), EndS: float64(at + d)}}
+		}
+	}
+	return out
+}
+
+// powerGrid resamples power to one value per second; gaps longer than
+// maxPowerHold count as 0 W. nil without any power value.
+func powerGrid(t []int64, power []float64) []float64 {
 	n := min(len(t), len(power))
 	if n == 0 {
 		return nil
@@ -101,26 +131,7 @@ func PowerCurve(t []int64, power []float64, durations []int) map[int]PowerEffort
 	if !any {
 		return nil
 	}
-	prefix := make([]float64, length+1)
-	for s, p := range grid {
-		prefix[s+1] = prefix[s] + p
-	}
-	out := map[int]PowerEffort{}
-	for _, d := range durations {
-		if d <= 0 || d > length {
-			continue
-		}
-		best, at := -1.0, 0
-		for s := 0; s+d <= length; s++ {
-			if sum := prefix[s+d] - prefix[s]; sum > best {
-				best, at = sum, s
-			}
-		}
-		if best > 0 {
-			out[d] = PowerEffort{Watts: best / float64(d), Window: Window{StartS: float64(at), EndS: float64(at + d)}}
-		}
-	}
-	return out
+	return grid
 }
 
 // PowerEffort is the best average power over one duration.

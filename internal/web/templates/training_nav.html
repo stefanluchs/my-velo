@@ -2,6 +2,8 @@
 {{define "trainingNav"}}
 <nav class="segmented subnav" aria-label="Training">
   <a href="stats" {{if eq . "stats"}}aria-current="true"{{end}}>Statistik</a>
-  <a href="records" {{if eq . "records"}}aria-current="true"{{end}}>Bestleistungen</a>
+  <a href="records" {{if eq . "records"}}aria-current="true"{{end}}>Bestwerte</a>
+  <a href="load" {{if eq . "load"}}aria-current="true"{{end}}>Belastung</a>
+  <a href="zones" {{if eq . "zones"}}aria-current="true"{{end}}>Zonen</a>
 </nav>
 {{end}}

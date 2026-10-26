@@ -74,3 +74,17 @@ export function referenceIndex(series) {
   }
   return -1;
 }
+
+/**
+ * Cumulative sums for stacked bars: bands[k][i] is the sum of series 0..k
+ * at index i (missing values count as 0).
+ */
+export function stack(series) {
+  const bands = [];
+  let acc = null;
+  for (const s of series) {
+    acc = s.map((v, i) => (acc ? acc[i] : 0) + (v ?? 0));
+    bands.push(acc);
+  }
+  return { bands };
+}

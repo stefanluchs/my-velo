@@ -3,7 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
-import { barSeries, total, cumulativeSeries, monthTicks, labelStep, referenceIndex } from "../static/stats-data.js";
+import { barSeries, total, cumulativeSeries, monthTicks, labelStep, referenceIndex, stack } from "../static/stats-data.js";
 
 const data = {
   labels: ["Jan", "Feb"],
@@ -53,4 +53,10 @@ test("labelStep thins labels on narrow charts", () => {
   assert.equal(labelStep(53, 1000), 3);
   assert.equal(labelStep(53, 300), 8);
   assert.equal(labelStep(0, 300), 1);
+});
+
+test("stack accumulates series for stacked bars", () => {
+  const { bands } = stack([[1, 2], [3, null], [0, 4]]);
+  assert.deepEqual(bands, [[1, 2], [4, 2], [4, 6]]);
+  assert.deepEqual(stack([]).bands, []);
 });
